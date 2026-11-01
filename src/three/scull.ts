@@ -39,7 +39,7 @@ const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
 // 치수 (m)
-const PIN_X = 0;
+const PIN_X = -0.08;
 const PIN_Y = 0.3;
 const PIN_Z = 0.8;
 const INBOARD = 0.88;
@@ -53,8 +53,8 @@ const SHIN = 0.46;
 const TORSO = 0.55;
 const UPPER_ARM = 0.31;
 const FOREARM = 0.31;
-const CATCH_ANGLE = (58 * Math.PI) / 180; // 블레이드가 뱃머리 쪽
-const FINISH_ANGLE = (-40 * Math.PI) / 180;
+const CATCH_ANGLE = (54 * Math.PI) / 180; // 블레이드가 뱃머리 쪽
+const FINISH_ANGLE = (-30 * Math.PI) / 180; // 피니시에서 손잡이가 가슴 앞에 오도록
 
 export class Scull {
   readonly group = new THREE.Group();
@@ -176,10 +176,13 @@ export class Scull {
   }
 
   /** Quaternius 캐릭터로 선수 교체 (불러오는 동안은 기본 몸) */
-  async useHuman(model: HumanModel, shirt: number) {
+  async useHuman(model: HumanModel, shirt: number, uniform = 'blue') {
     const h = await Human.create(model, 1.82);
-    h.recolor('Body', shirt);
-    h.recolor('Legs', 0x16161a);
+    if (h.realistic) await h.setUniform(uniform);
+    else {
+      h.recolor('Body', shirt);
+      h.recolor('Legs', 0x16161a);
+    }
     if (this.ghost) h.setGhost(0.42);
     h.root.rotation.y = -Math.PI / 2; // 선미(-x)를 보게
     this.group.add(h.root);

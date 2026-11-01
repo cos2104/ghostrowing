@@ -130,7 +130,8 @@ export function mountRace(root: HTMLElement) {
           ghost: r.ghost,
           me: r.me,
           shirt: r.me || r.ghost ? SHIRTS[app.character.shirt] : undefined,
-          human: app.character.gender === 'w' ? 'w_Casual' : 'm_Beach',
+          human: app.character.gender === 'w' ? 'rb_female' : 'rb_male',
+          uniform: app.character.shirt,
         })),
       });
     } else {

@@ -23,7 +23,7 @@ const spm = Number(q.get('spm') ?? 32);
 const boats = colors.map((c, i) => ({ s: new Scull(c, { ghost: i === 2 }), lane: i + 1, d: d0 - i * 3 }));
 for (const b of boats) world.scene.add(b.s.group);
 (window as any).boats = boats;
-if (q.get('human') !== '0') boats.forEach((b, i) => b.s.useHuman(i === 1 ? 'w_Casual' : 'm_Beach', [0x1f4fbf, 0xd62828, 0x222222][i]));
+if (q.get('human') !== '0') boats.forEach((b, i) => b.s.useHuman(i === 1 ? 'rb_female' : 'rb_male', [0x1f4fbf, 0xd62828, 0x222222][i], ['blue', 'red', 'white'][i]));
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 6000);
 const resize = () => { world.resize(canvas.clientWidth, canvas.clientHeight); camera.aspect = canvas.clientWidth / canvas.clientHeight; camera.updateProjectionMatrix(); };
 resize(); addEventListener('resize', resize);
@@ -43,7 +43,8 @@ function frame(now: number) {
   const cam = q.get('cam') ?? 'side';
   const right = (o: number, dd = 0) => track.frame(me.d + dd, o);
   if (cam === 'side') { const p = right(-world.waterHalf + 15, -4); camera.position.set(p.x, 6, p.z); const t = track.frame(me.d, laneWidth); camera.lookAt(t.x + 1, 0.4, t.z); camera.fov = 16; }
-  else if (cam === 'front') { const p = track.frame(me.d - 6.5, (me.lane + 0.5 - lanes / 2) * laneWidth - 1.5); camera.position.set(p.x, 1.5, p.z); const t = track.frame(me.d, (me.lane + 0.5 - lanes / 2) * laneWidth); camera.lookAt(t.x, 0.7, t.z); camera.fov = 45; }
+  else if (cam === 'front') { const p = track.frame(me.d - Number(q.get('fd') ?? 6.5), (me.lane + 0.5 - lanes / 2) * laneWidth - 1.5); camera.position.set(p.x, 1.5, p.z); const t = track.frame(me.d, (me.lane + 0.5 - lanes / 2) * laneWidth); camera.lookAt(t.x, 0.7, t.z); camera.fov = 45; }
+  else if (cam === 'f2') { const b = boats[1]; const p = track.frame(b.d - 2.4, (b.lane + 0.5 - lanes / 2) * laneWidth - 1.2); camera.position.set(p.x, 1.3, p.z); const t = track.frame(b.d, (b.lane + 0.5 - lanes / 2) * laneWidth); camera.lookAt(t.x, 0.7, t.z); camera.fov = 45; }
   else if (cam === 'start') { const p = right(30, -40); camera.position.set(p.x, 22, p.z); camera.lookAt(f.x + 40, 0, f.z - 5); camera.fov = 45; }
   else if (cam === 'top') { camera.position.set(f.x, 600, f.z + 1); camera.lookAt(f.x, 0, f.z); camera.fov = 60; }
   camera.updateProjectionMatrix();

@@ -6,7 +6,8 @@
 | 물 노멀 텍스처 (`public/assets/three/waternormals.jpg`) | three.js 저장소 `examples/textures` | MIT | 물결·반사 |
 | 하늘 (`public/assets/polyhaven/`) | [Poly Haven](https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky) "Kloofendal 48d Partly Cloudy (Pure Sky)" — Greg Zaal, Jarod Guest | CC0 1.0 | 배경 하늘(4K/2K JPG), 조명·반사(1K HDR) |
 | 나무·덤불·풀·바위·연잎 (`public/assets/quaternius/nature/`) | [Quaternius](https://quaternius.com/packs/ultimatenature.html) Ultimate Nature Pack | CC0 1.0 | 강둑 자연 |
-| 사람 캐릭터 (`public/assets/quaternius/people/`) | [Quaternius](https://quaternius.com/packs/ultimatemodularcharacters.html) Ultimate Modular Men·Women Pack | CC0 1.0 | 노 젓는 선수(뼈대를 코드로 움직임), 강둑 관중 |
+| 선수 (`public/assets/rocketbox/`) | [Microsoft Rocketbox Avatar Library](https://github.com/microsoft/Microsoft-Rocketbox) Sports_Male_04, Sports_Female_02 | MIT (`LICENSE.md` 동봉) | 노 젓는 남녀 선수. FBX를 GLB로 변환, 텍스처 1024px로 축소, 유니폼 색별 텍스처 생성 |
+| 관중 (`public/assets/quaternius/people/`) | [Quaternius](https://quaternius.com/packs/ultimatemodularcharacters.html) Ultimate Modular Men·Women Pack | CC0 1.0 | 강둑 관중 |
 | 3D 건물·시설 (`public/assets/kenney3d/`) | [Kenney](https://www.kenney.nl) City Kit (Commercial·Suburban), Racing Kit | CC0 1.0 | 빌딩·주택·관중석·깃발 |
 | 2D 나룻배·캐릭터 (`public/assets/kenney/`) | Kenney Pirate Pack, Racing Pack | CC0 1.0 | 시작 화면 캐릭터 미리보기, 3D를 못 쓰는 기기의 대체 화면 |
 | 경기정·노 3D 모델 | 직접 제작 (`src/three/scull.ts`) | — | 배·리거·노 (선수 캐릭터를 불러오기 전 대체 몸 포함) |

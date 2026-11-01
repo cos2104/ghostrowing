@@ -4,16 +4,19 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
-const BASE = `${import.meta.env.BASE_URL}assets/quaternius/people/`;
+const ASSETS = `${import.meta.env.BASE_URL}assets/`;
+/** Rocketbox(MIT) 사실적 선수 모델 → 폴더 */
+const ROCKETBOX: Record<string, string> = { rb_male: 'Sports_Male_04', rb_female: 'Sports_Female_02' };
+const fileOf = (m: HumanModel) => (m in ROCKETBOX ? `${ASSETS}rocketbox/${ROCKETBOX[m]}/model.glb` : `${ASSETS}quaternius/people/${m}.glb`);
 const loader = new GLTFLoader();
 const cache = new Map<string, Promise<THREE.Object3D>>();
 
-export type HumanModel = 'm_Beach' | 'w_Casual' | 'm_Casual' | 'm_Suit' | 'm_Worker' | 'w_Formal' | 'w_Worker' | 'w_Adventurer';
+export type HumanModel = 'rb_male' | 'rb_female' | 'm_Beach' | 'w_Casual' | 'm_Casual' | 'm_Suit' | 'm_Worker' | 'w_Formal' | 'w_Worker' | 'w_Adventurer';
 
 function loadBase(model: HumanModel) {
   let p = cache.get(model);
   if (!p) {
-    p = loader.loadAsync(`${BASE}${model}.glb`).then((g) => g.scene);
+    p = loader.loadAsync(fileOf(model)).then((g) => g.scene);
     cache.set(model, p);
   }
   return p;
@@ -25,6 +28,15 @@ const BONES = [
   'UpperLeg.L', 'LowerLeg.L', 'Foot.L', 'UpperLeg.R', 'LowerLeg.R', 'Foot.R',
 ] as const;
 type BoneName = (typeof BONES)[number];
+
+/** 3ds Max Biped(Rocketbox) 뼈 이름 → 공통 이름 */
+const BIPED: Record<string, BoneName> = {
+  Bip01_Pelvis: 'Hips', Bip01_Spine: 'Abdomen', Bip01_Spine1: 'Torso', Bip01_Spine2: 'Chest', Bip01_Neck: 'Neck', Bip01_Head: 'Head',
+  Bip01_L_UpperArm: 'UpperArm.L', Bip01_L_Forearm: 'LowerArm.L', Bip01_L_Hand: 'Hand.L',
+  Bip01_R_UpperArm: 'UpperArm.R', Bip01_R_Forearm: 'LowerArm.R', Bip01_R_Hand: 'Hand.R',
+  Bip01_L_Thigh: 'UpperLeg.L', Bip01_L_Calf: 'LowerLeg.L', Bip01_L_Foot: 'Foot.L',
+  Bip01_R_Thigh: 'UpperLeg.R', Bip01_R_Calf: 'LowerLeg.R', Bip01_R_Foot: 'Foot.R',
+};
 
 const _a = new THREE.Vector3();
 const _b = new THREE.Vector3();
@@ -41,14 +53,17 @@ export class Human {
   /** 뼈 길이 (월드 m) */
   len = { thigh: 0, shin: 0, upper: 0, fore: 0, spine: 0 };
 
-  private constructor(model: THREE.Object3D, height: number) {
+  readonly realistic: boolean;
+
+  private constructor(model: THREE.Object3D, height: number, readonly kind: HumanModel) {
     this.model = model;
+    this.realistic = kind in ROCKETBOX;
     this.root.add(model);
     model.traverse((o) => {
       const b = o as THREE.Bone;
       // GLTFLoader가 이름의 '.'을 지우므로 (UpperArm.L → UpperArmL) 점 없이 비교
       if (b.isBone) {
-        const hit = BONES.find((n) => n.replace('.', '') === b.name);
+        const hit = BIPED[b.name] ?? BONES.find((n) => n.replace('.', '') === b.name);
         if (hit) this.bones[hit] = b;
       }
       if ((o as THREE.Mesh).isMesh) {
@@ -57,6 +72,15 @@ export class Human {
         m.material = Array.isArray(m.material) ? m.material.map((x) => x.clone()) : m.material.clone();
         for (const x of Array.isArray(m.material) ? m.material : [m.material]) this.materials.push(x);
       }
+    });
+    // 손가락: 노 손잡이를 쥔 모양으로 구부려 둔다 (Biped 손가락 굽힘축 = 로컬 Z)
+    model.traverse((o) => {
+      const b = o as THREE.Bone;
+      if (!b.isBone) return;
+      const m = /^Bip01_[LR]_Finger(\d)(\d?)$/.exec(b.name);
+      if (!m) return;
+      const thumb = m[1] === '0';
+      b.rotateZ(thumb ? 0.35 : m[2] === '' ? 1.1 : 1.25);
     });
     for (const b of Object.values(this.bones)) this.rest.set(b, b.quaternion.clone());
     // 키를 맞춘다: 메시와 뼈대 단위가 달라 메시 상자 대신 뼈대(발목~머리)로 잰다. 머리 뼈는 키의 약 90%
@@ -75,7 +99,7 @@ export class Human {
 
   static async create(model: HumanModel, height = 1.8) {
     const base = await loadBase(model);
-    return new Human(cloneSkinned(base), height);
+    return new Human(cloneSkinned(base), height, model);
   }
 
   /** 옷 색 바꾸기: 메시 이름에 part가 들어간 것 중 피부가 아닌 재질 */
@@ -86,6 +110,25 @@ export class Human {
       for (const x of Array.isArray(m.material) ? m.material : [m.material]) {
         const sm = x as THREE.MeshStandardMaterial;
         if (sm.name && !/^(skin|eyes?|eyebrows|hair.*|earrings)$/i.test(sm.name)) sm.color.setHex(color);
+      }
+    });
+  }
+
+  /** 사실적 모델: 유니폼 색별 텍스처로 교체 (blue·green·red·white) */
+  async setUniform(name: string) {
+    if (!this.realistic) return;
+    const tex = await new THREE.TextureLoader().loadAsync(`${ASSETS}rocketbox/${ROCKETBOX[this.kind]}/body_${name}.jpg`);
+    tex.flipY = true; // 원본(FBX) 방향 이미지. 변환 때 GLB 안의 이미지는 뒤집혀 저장됨
+    tex.colorSpace = THREE.SRGBColorSpace;
+    this.model.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      for (const x of Array.isArray(m.material) ? m.material : [m.material]) {
+        const sm = x as THREE.MeshStandardMaterial;
+        if (/_body$/.test(sm.name)) {
+          sm.map = tex;
+          sm.needsUpdate = true;
+        }
       }
     });
   }

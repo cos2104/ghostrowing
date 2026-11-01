@@ -17,8 +17,10 @@ export interface Boat3D {
   me?: boolean;
   /** 유니폼 색 (없으면 국가색) */
   shirt?: number;
-  /** 선수 캐릭터 (Quaternius) */
+  /** 선수 캐릭터 */
   human?: HumanModel;
+  /** 사실적 모델 유니폼 텍스처 이름 (blue·green·red·white) */
+  uniform?: string;
 }
 
 export interface BoatState {
@@ -80,7 +82,7 @@ export class RaceView3D {
       );
       this.world.scene.add(scull.group);
       this.boats.set(b.id, { def: b, scull });
-      scull.useHuman(b.human ?? 'm_Beach', b.shirt ?? b.country.kit).catch((e) => console.warn('선수 캐릭터 로드 실패', e));
+      scull.useHuman(b.human ?? 'rb_male', b.shirt ?? b.country.kit, b.uniform).catch((e) => console.warn('선수 캐릭터 로드 실패', e));
       this.state[b.id] = { d: 0, spm: 0 };
     }
     this.addLaneCards();
@@ -251,8 +253,8 @@ export class RaceView3D {
       }
       case 'aerial': {
         cam.fov = 40;
-        cam.position.copy(at(focus - 28, midLane - 14, 16));
-        cam.lookAt(at(focus + 12, midLane, 0));
+        cam.position.copy(at(focus - 17, midLane - 8, 9.5));
+        cam.lookAt(at(focus + 5, midLane, 0));
         break;
       }
       case 'finish': {
