@@ -42,7 +42,7 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const PIN_X = -0.08;
 const PIN_Y = 0.33;
 const PIN_Z = 0.8;
-const INBOARD = 0.88;
+const INBOARD = 0.78; // 손잡이가 몸 중앙선을 넘지 않게 (좌우 손이 엇갈리지 않고 대칭으로 움직임)
 const OUTBOARD = 1.95; // 핀에서 블레이드 중심까지
 const FOOT = V(-0.55, 0.12, 0);
 const SEAT_Y = 0.2;
@@ -285,11 +285,8 @@ export class Scull {
       bladeC.y = bladeY;
       const shaftDir = bladeC.clone().sub(pin).normalize();
       const handle = pin.clone().sub(shaftDir.clone().multiplyScalar(INBOARD));
-      // 손잡이 겹침: 드라이브 중반 좌우 손잡이가 중앙선을 넘어 겹친다(실제로 약 16cm).
-      // 실제 스컬링처럼 왼손(+z)이 위·약간 앞, 오른손이 아래로 지나가게 높이를 나눈다.
-      const cross = Math.min(1, Math.max(0, (0.1 - handle.z * sign) / 0.2));
-      handle.y += sign > 0 ? 0.07 * cross : -0.035 * cross;
-      if (sign > 0) handle.x -= 0.04 * cross;
+      // 좌우 대칭: 손은 항상 자기 쪽에 (중앙선에서 최소 6cm)
+      handle.z = sign * Math.max(0.0, handle.z * sign);
       const tip = pin.clone().add(shaftDir.clone().multiplyScalar(OUTBOARD + 0.22));
       place(P[`shaft${s}`], handle, bladeC);
       const blade = P[`blade${s}`];

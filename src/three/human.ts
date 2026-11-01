@@ -105,6 +105,57 @@ export class Human {
     this.len.upper = P('UpperArm.L').distanceTo(P('LowerArm.L'));
     this.len.fore = P('LowerArm.L').distanceTo(P('Hand.L'));
     this.len.spine = P('Hips').distanceTo(P('Neck'));
+    // 관절 경첩 측정 (좌우 각각): 팔꿈치·무릎이 실제로 굽는 면의 법선을 위팔·허벅지 로컬 좌표로 저장
+    for (const side of ['L', 'R'] as const) {
+      this.measureHinge(`UpperArm.${side}`, `LowerArm.${side}`, `Hand.${side}`, 1);
+      this.measureHinge(`UpperLeg.${side}`, `LowerLeg.${side}`, `Foot.${side}`, -1);
+    }
+  }
+
+  /** 위팔(a)→아래팔(b)→끝(c). 굽힘(굴곡) 방향: 팔은 손이 몸 앞으로(+1), 다리는 발이 뒤로(-1) */
+  private hinge = new Map<BoneName, THREE.Vector3>();
+  private measureHinge(a: BoneName, b: BoneName, c: BoneName, forwardSign: number) {
+    this.resetPose();
+    const A = this.bonePos(a);
+    const B = this.bonePos(b);
+    const C0 = this.bonePos(c);
+    const bone = this.bones[b];
+    const saved = bone.quaternion.clone();
+    bone.rotateZ(0.5); // Biped·Mixamo 계열 모두 굽힘 축 후보
+    bone.updateMatrixWorld(true);
+    const C1 = this.bonePos(c);
+    bone.quaternion.copy(saved);
+    this.root.updateMatrixWorld(true);
+    const u = B.clone().sub(A);
+    let n = u.clone().cross(C1.clone().sub(B));
+    // 축이 뼈 방향과 거의 같으면(굽지 않음) X축으로 다시
+    if (n.length() < 1e-4) return;
+    n.normalize();
+    // 굴곡 방향 판정: 모델 정면(+Z, 모델 좌표)으로 손이 가면 굴곡
+    const fwd = new THREE.Vector3(0, 0, 1).transformDirection(this.model.matrixWorld);
+    const delta = C1.clone().sub(C0);
+    if (delta.dot(fwd) * forwardSign < 0) n.negate();
+    // 위 뼈(a)의 로컬 좌표로
+    const qa = this.bones[a].getWorldQuaternion(new THREE.Quaternion()).invert();
+    this.hinge.set(a, n.applyQuaternion(qa));
+  }
+
+  /** 위 뼈를 자기 축으로 비틀어, 경첩 법선이 원하는 굽힘 면 법선(world)과 같아지게 */
+  private alignHinge(a: BoneName, axis: THREE.Vector3, want: THREE.Vector3) {
+    const local = this.hinge.get(a);
+    if (!local || want.lengthSq() < 1e-8) return;
+    const bone = this.bones[a];
+    const wq = bone.getWorldQuaternion(new THREE.Quaternion());
+    const cur = local.clone().applyQuaternion(wq);
+    const proj = (v: THREE.Vector3) => v.clone().sub(axis.clone().multiplyScalar(v.dot(axis))).normalize();
+    const c = proj(cur);
+    const w = proj(want);
+    const ang = Math.atan2(c.clone().cross(w).dot(axis), c.dot(w));
+    const tw = new THREE.Quaternion().setFromAxisAngle(axis, ang);
+    wq.premultiply(tw);
+    const pq = bone.parent!.getWorldQuaternion(new THREE.Quaternion()).invert();
+    bone.quaternion.copy(pq.multiply(wq));
+    bone.updateMatrixWorld(true);
   }
 
   static async create(model: HumanModel, height = 1.8) {
@@ -201,6 +252,10 @@ export class Human {
     const perp = pole.clone().sub(dir.clone().multiplyScalar(pole.dot(dir))).normalize();
     const joint = root.clone().add(dir.clone().multiplyScalar(x)).add(perp.multiplyScalar(h));
     this.aim(a, b, joint);
+    // 굽힘 면 법선: 위 뼈 방향 × 아래 뼈 방향
+    const upper = joint.clone().sub(root).normalize();
+    const want = upper.clone().cross(target.clone().sub(joint).normalize());
+    if (want.lengthSq() > 1e-6) this.alignHinge(a, upper, want.normalize());
     this.aim(b, c, target);
   }
 
