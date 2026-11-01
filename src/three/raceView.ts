@@ -28,7 +28,7 @@ export interface BoatState {
   spm: number;
 }
 
-export type CameraMode = 'auto' | 'side' | 'face' | 'aerial';
+export type CameraMode = 'auto' | 'start' | 'side' | 'face' | 'aerial' | 'finish';
 type Shot = 'start' | 'side' | 'face' | 'aerial' | 'finish';
 
 export interface RaceViewOptions {
@@ -202,10 +202,13 @@ export class RaceView3D {
   private direct(t: number, myD: number, ds: number[]) {
     const lead = Math.max(...ds);
     const trail = Math.min(...ds);
-    const focus = lead - trail < 60 ? (lead + trail) / 2 : myD;
+    // 무리가 너무 퍼지면(고스트·컴퓨터가 멀리) 내 배 주변 150m만 화면에 담는다
+    const lo = Math.max(trail, myD - 150);
+    const hi = Math.min(lead, myD + 150);
+    const focus = (lo + hi) / 2;
+    const spread = Math.max(20, hi - lo);
     const finite = Number.isFinite(this.opts.raceDistance) && this.opts.raceDistance > 0;
     const toFinish = finite ? this.opts.raceDistance - lead : Infinity;
-
     let want: Shot;
     if (this.cameraMode !== 'auto') want = this.cameraMode;
     else if (this.phase === 'countdown' || this.clockSec < 3) want = 'start';
@@ -240,10 +243,11 @@ export class RaceView3D {
         break;
       }
       case 'side': {
-        // 강둑에서 약간 뒤쪽 비스듬히: 정면 측면이면 가까운 노가 수직 막대처럼 보인다
-        cam.fov = 12;
-        cam.position.copy(at(focus - 24, -this.world.waterHalf + 12, 6.5));
-        cam.lookAt(at(focus + 1.5, midLane, 0.5));
+        // 출발 장면처럼 강둑 위 높은 곳에서 비스듬히, 모든 레인과 무리 전체가 보이게
+        cam.fov = 40;
+        const back = 16 + spread * 0.45;
+        cam.position.copy(at(focus - back * 0.55, -(this.lanes / 2) * LANE_W - back * 0.55, 8 + back * 0.32));
+        cam.lookAt(at(focus + 4, midLane * 0.5, 0));
         break;
       }
       case 'face': {
@@ -253,9 +257,19 @@ export class RaceView3D {
         break;
       }
       case 'aerial': {
-        cam.fov = 40;
-        cam.position.copy(at(focus - 17, midLane - 8, 9.5));
-        cam.lookAt(at(focus + 5, midLane, 0));
+        // 수직으로 내려다보기: 진행 방향이 화면 오른쪽, 모든 레인과 무리 전체가 들어오게
+        cam.fov = 45;
+        const c = at(focus, 0, 0);
+        const ahead = at(focus + 10, 0, 0).sub(c).normalize();
+        const vfov = (cam.fov * Math.PI) / 180;
+        const hfov = 2 * Math.atan(Math.tan(vfov / 2) * cam.aspect);
+        const across = this.lanes * LANE_W + 6;
+        const h = Math.max((spread + 30) / 2 / Math.tan(hfov / 2), across / 2 / Math.tan(vfov / 2), 40);
+        cam.position.set(c.x, h, c.z);
+        // 화면 위쪽 = 진행 방향의 왼쪽 → 진행 방향이 화면 오른쪽
+        cam.up.set(-ahead.z, 0, ahead.x).negate();
+        cam.lookAt(c);
+        cam.up.set(0, 1, 0);
         break;
       }
       case 'finish': {

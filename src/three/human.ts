@@ -195,12 +195,28 @@ export class Human {
   }
 
   setGhost(opacity: number) {
-    for (const m of this.materials) {
-      m.transparent = true;
-      m.opacity = opacity;
-      m.depthWrite = false;
-    }
+    // 고스트는 내 모습의 반투명 복사본이 아니라 푸른빛 유령으로: 내 캐릭터와 헷갈리지 않게
+    this.model.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const mk = () => {
+        const g = new THREE.MeshStandardMaterial({
+          color: 0xcfe8ff,
+          emissive: 0x3d86d6,
+          emissiveIntensity: 0.55,
+          roughness: 0.4,
+          transparent: true,
+          opacity,
+          depthWrite: false,
+        });
+        this.materials.push(g);
+        return g;
+      };
+      m.material = Array.isArray(m.material) ? m.material.map(mk) : mk();
+      m.renderOrder = 2;
+    });
   }
+
 
   resetPose() {
     for (const [b, q] of this.rest) b.quaternion.copy(q);

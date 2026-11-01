@@ -327,3 +327,8 @@ select, input {
 .race3d .srow.ai { opacity: 0.95; }
 .result-place { font-size: 2rem; font-weight: 800; color: #ffd34d; margin: 0; }
 .result-place small { font-size: 1rem; color: var(--muted); }
+.cam-bar { right: 14px; top: 176px; pointer-events: auto; display: flex; flex-direction: column; gap: 4px; }
+.cam-bar button { min-height: 34px; padding: 4px 12px; font-size: 0.85rem; background: rgba(10,25,45,.8); color: #fff; border: 1px solid rgba(160,210,255,.4); }
+.cam-bar button.on { background: var(--accent); color: #001526; }
+.race3d #view { cursor: pointer; }
+@media (max-width: 900px) { .cam-bar { top: 124px; } .cam-bar button { min-height: 30px; padding: 2px 8px; font-size: 0.75rem; } }

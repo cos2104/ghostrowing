@@ -16,8 +16,8 @@ import { COUNTRIES } from '../countries';
 
 /** 화면 표시 지연. 샘플(250ms) 사이를 보간해 부드럽게 그리기 위함 */
 const DISPLAY_DELAY_MS = 250;
-const CAM_LABEL: Record<CameraMode, string> = { auto: '자동', side: '측면', face: '근접', aerial: '공중' };
-const CAM_ORDER: CameraMode[] = ['auto', 'side', 'face', 'aerial'];
+const CAM_LABEL: Record<CameraMode, string> = { auto: '자동', start: '출발', side: '측면', face: '근접', aerial: '공중', finish: '결승' };
+const CAM_ORDER: CameraMode[] = ['auto', 'side', 'face', 'aerial', 'start', 'finish'];
 const SHIRTS: Record<string, number> = { blue: 0x1f4fbf, green: 0x1f8f4a, red: 0xc8202e, white: 0xf2f2f2 };
 
 interface Racer {
@@ -85,7 +85,7 @@ export function mountRace(root: HTMLElement) {
           <div id="split" class="split" hidden></div>
           <div id="countdown" class="countdown"></div>
           <div id="banner" class="banner" hidden></div>
-          <button id="cam" class="cam-btn">카메라: 자동</button>
+          <div class="cam-bar" id="cams">${CAM_ORDER.map((m) => `<button data-cam="${m}" class="${m === 'auto' ? 'on' : ''}">${CAM_LABEL[m]}</button>`).join('')}</div>
         </div>
       </div>
       <section class="metrics compact">
@@ -227,10 +227,20 @@ export function mountRace(root: HTMLElement) {
     auto?.setRunning(false);
     go('connect');
   });
-  $('#cam').addEventListener('click', () => {
+  const setCam = (m: CameraMode) => {
     if (!view) return;
-    view.cameraMode = CAM_ORDER[(CAM_ORDER.indexOf(view.cameraMode) + 1) % CAM_ORDER.length];
-    $('#cam').textContent = `카메라: ${CAM_LABEL[view.cameraMode]}`;
+    view.cameraMode = m;
+    root.querySelectorAll<HTMLButtonElement>('[data-cam]').forEach((b) => b.classList.toggle('on', b.dataset.cam === m));
+  };
+  root.querySelectorAll<HTMLButtonElement>('[data-cam]').forEach((b) =>
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setCam(b.dataset.cam as CameraMode);
+    }),
+  );
+  // 화면을 누르면 다음 카메라로
+  viewCanvas.addEventListener('click', () => {
+    if (view) setCam(CAM_ORDER[(CAM_ORDER.indexOf(view.cameraMode) + 1) % CAM_ORDER.length]);
   });
   const stroke = () => src.stroke();
   root.querySelector('#row')?.addEventListener('pointerdown', (e) => {

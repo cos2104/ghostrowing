@@ -35,6 +35,23 @@ function place(mesh: THREE.Object3D, a: THREE.Vector3, b: THREE.Vector3) {
   mesh.scale.set(1, len, 1);
 }
 
+/** 빅블레이드(해칫) 모양: 샤프트 쪽이 좁고 끝이 넓은 비대칭 주걱. 길이 x(-0.24~0.24), 폭 z, 두께 y */
+let hatchetGeo: THREE.BufferGeometry | null = null;
+function hatchet() {
+  if (hatchetGeo) return hatchetGeo;
+  const sh = new THREE.Shape();
+  sh.moveTo(-0.24, -0.03);
+  sh.lineTo(-0.24, 0.05);
+  sh.quadraticCurveTo(0.05, 0.13, 0.23, 0.125); // 위 가장자리: 거의 곧게
+  sh.quadraticCurveTo(0.26, 0.0, 0.2, -0.11); // 끝: 둥글게
+  sh.quadraticCurveTo(0.0, -0.1, -0.24, -0.03); // 아래 가장자리: 휘어 들어감
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.008, bevelEnabled: false, curveSegments: 10 });
+  g.translate(0, 0, -0.004);
+  g.rotateX(-Math.PI / 2); // 모양 평면(xy)을 xz로: 두께가 y
+  hatchetGeo = g;
+  return g;
+}
+
 const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, t)));
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
@@ -79,8 +96,11 @@ export class Scull {
     const mat = (color: number, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) => {
       const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05, ...extra });
       if (opts.ghost) {
+        m.color.setHex(0xcfe8ff);
+        m.emissive.setHex(0x3d86d6);
+        m.emissiveIntensity = 0.5;
         m.transparent = true;
-        m.opacity = 0.42;
+        m.opacity = 0.4;
         m.depthWrite = false;
       }
       this.materials.push(m);
@@ -88,29 +108,49 @@ export class Scull {
     };
     const cyl = (r: number, m: THREE.Material, seg = 8) => new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1, seg), m);
 
-    // 선체: 길고 가는 타원체 + 덱 + 앞뒤 끝 표식
-    const hullMat = mat(style.hull, { roughness: 0.35 });
-    const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 10), hullMat);
-    hull.scale.set(4.1, 0.1, 0.15);
-    hull.position.y = 0.02;
-    const deck = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 6, 0, Math.PI * 2, 0, Math.PI / 2), mat(0xf4f4f0));
-    deck.scale.set(4.0, 0.035, 0.14);
+    // 선체: 길고 가는 경기정. 아랫부분은 선체색, 위 덱은 카본(검정), 뱃머리 고무공·선미 핀
+    const hullMat = mat(style.hull, { roughness: 0.3, metalness: 0.1 });
+    const hull = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), hullMat);
+    hull.scale.set(4.1, 0.13, 0.15);
+    hull.position.y = 0.1;
+    const deck = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 6, 0, Math.PI * 2, 0, Math.PI / 2), hullMat);
+    deck.scale.set(4.1, 0.03, 0.15);
     deck.position.y = 0.1;
-    // 콕핏 (선수가 앉는 곳)
-    const cockpit = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.02, 0.24), mat(0x2a2a2a));
-    cockpit.position.set(0.0, 0.12, 0);
-    const bowBall = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mat(0xffffff));
-    bowBall.position.set(4.08, 0.1, 0);
-    this.group.add(hull, deck, cockpit, bowBall);
+    // 콕핏 주변 카본 덱 (실제 경기정처럼 가운데만 검정)
+    const carbon = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 4, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x1a1c1f, { roughness: 0.35, metalness: 0.25 }));
+    carbon.scale.set(1.25, 0.034, 0.152);
+    carbon.position.set(-0.1, 0.1, 0);
+    this.group.add(carbon);
+    // 콕핏: 낮은 카본 테두리
+    const cockpit = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.05, 0.27), mat(0x0f1012, { roughness: 0.5 }));
+    cockpit.position.set(-0.05, 0.12, 0);
+    const bowBall = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), mat(0xf4f4f4));
+    bowBall.position.set(4.1, 0.11, 0);
+    const fin = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.008), mat(0x111111));
+    fin.position.set(-3.2, -0.02, 0);
+    this.group.add(hull, deck, cockpit, bowBall, fin);
 
-    // 리거
-    const rigMat = mat(0x333840, { metalness: 0.6, roughness: 0.4 });
+    // 날개형 리거: 등 뒤(뱃머리 쪽)로 휘어 양쪽 노받이를 잇는 카본 날개 + 덱 받침
+    const rigMat = mat(0x22252a, { metalness: 0.4, roughness: 0.35 });
+    const wingPath = new THREE.CatmullRomCurve3([
+      V(PIN_X, PIN_Y - 0.02, -PIN_Z),
+      V(PIN_X + 0.32, PIN_Y - 0.06, -PIN_Z * 0.45),
+      V(PIN_X + 0.42, PIN_Y - 0.08, 0),
+      V(PIN_X + 0.32, PIN_Y - 0.06, PIN_Z * 0.45),
+      V(PIN_X, PIN_Y - 0.02, PIN_Z),
+    ]);
+    const wing = new THREE.Mesh(new THREE.TubeGeometry(wingPath, 40, 0.028, 8), rigMat);
+    wing.scale.y = 1;
+    this.group.add(wing);
     for (const s of [-1, 1]) {
-      const r1 = cyl(0.012, rigMat);
-      place(r1, V(PIN_X + 0.15, 0.11, 0.12 * s), V(PIN_X, PIN_Y, PIN_Z * s));
-      const r2 = cyl(0.012, rigMat);
-      place(r2, V(PIN_X - 0.25, 0.11, 0.12 * s), V(PIN_X, PIN_Y, PIN_Z * s));
-      this.group.add(r1, r2);
+      const strut = cyl(0.014, rigMat);
+      place(strut, V(PIN_X + 0.3, 0.12, 0.13 * s), V(PIN_X + 0.32, PIN_Y - 0.06, PIN_Z * 0.45 * s));
+      const strut2 = cyl(0.012, rigMat);
+      place(strut2, V(PIN_X - 0.2, 0.12, 0.13 * s), V(PIN_X, PIN_Y - 0.02, PIN_Z * s));
+      // 노받이(게이트): 노란 상자
+      const gate = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.05), mat(0xf2c200, { roughness: 0.4 }));
+      gate.position.set(PIN_X, PIN_Y + 0.01, PIN_Z * s);
+      this.group.add(strut, strut2, gate);
     }
 
     // 슬라이드 레일·발판·시트
@@ -128,7 +168,7 @@ export class Scull {
     const bladeMat = mat(style.blade, { roughness: 0.4, side: THREE.DoubleSide });
     for (const s of ['L', 'R']) {
       this.parts[`shaft${s}`] = cyl(0.018, shaftMat);
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.008, 0.22), bladeMat);
+      const blade = new THREE.Mesh(hatchet(), bladeMat);
       this.parts[`blade${s}`] = blade;
       this.group.add(this.parts[`shaft${s}`], blade);
     }
