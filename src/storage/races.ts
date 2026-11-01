@@ -49,6 +49,17 @@ export async function listRaces(source: SourceKind, distance: number): Promise<S
   return wrap(idx.getAll([source, distance]) as IDBRequest<SavedRace[]>);
 }
 
+/** 모든 기록 (최근 순) */
+export async function listAll(): Promise<SavedRace[]> {
+  const db = await openDb();
+  const all = await wrap(db.transaction(STORE).objectStore(STORE).getAll() as IDBRequest<SavedRace[]>);
+  return all.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+/** 평균 페이스 (초/500m) */
+export const paceOf = (r: { finishMs: number; traveledM?: number; distance: number }) =>
+  (r.finishMs / 1000) * (500 / Math.max(1, r.traveledM || r.distance));
+
 /** 평균 속도 (m/s) */
 const speedOf = (r: SavedRace) => (r.traveledM ?? r.distance) / Math.max(1, r.finishMs / 1000);
 

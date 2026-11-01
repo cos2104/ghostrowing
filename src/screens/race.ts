@@ -1,4 +1,4 @@
-import { app, formatDiff, formatTime, go } from '../app';
+import { app, fmtPace, formatDiff, formatTime, go, ICON } from '../app';
 import { clock } from '../clock';
 import { countryByCode, flagUrl, type Country } from '../countries';
 import { formatPace } from '../pm5/parse';
@@ -85,6 +85,9 @@ export function mountRace(root: HTMLElement) {
           <div id="split" class="split" hidden></div>
           <div id="countdown" class="countdown"></div>
           <div id="banner" class="banner" hidden></div>
+          <div id="loading" class="loading"><i></i><span>경기장 불러오는 중…</span></div>
+          <div id="finish" class="finish-ov" hidden></div>
+          <button class="fs-btn" id="fs" aria-label="전체 화면">${ICON.full}</button>
           <div class="cam-bar" id="cams">${CAM_ORDER.map((m) => `<button data-cam="${m}" class="${m === 'auto' ? 'on' : ''}">${CAM_LABEL[m]}</button>`).join('')}</div>
         </div>
       </div>
@@ -95,9 +98,9 @@ export function mountRace(root: HTMLElement) {
         <div class="metric"><label>파워</label><output id="m-watts">-</output><span>W</span></div>
         <div class="metric"><label>고스트</label><output id="m-gap">-</output><span id="m-gap-u"></span></div>
       </section>
-      <div class="row race-actions">
+      <div class="race-actions">
         ${auto?.manual ? '<button id="row" class="row-pad">탭해서 젓기 (스페이스바)</button>' : ''}
-        <button id="quit" class="secondary big">${open ? '종료' : '기권'}</button>
+        <button id="quit" class="btn glass lg">${open ? '종료하고 저장' : '기권'}</button>
       </div>
     </div>
   `;
@@ -170,7 +173,9 @@ export function mountRace(root: HTMLElement) {
           uniform: r.uniform ?? app.character.shirt,
         })),
       });
+      view.ready.finally(() => $('#loading').classList.add('done'));
     } else {
+      $('#loading').classList.add('done');
       viewCanvas.hidden = true;
       flatCanvas.hidden = false;
     }
@@ -214,8 +219,28 @@ export function mountRace(root: HTMLElement) {
     const place = field.length
       ? 1 + field.filter((r) => (timeAt(r.trace(), result.traveledM || result.distance) ?? Infinity) < result.finishMs).length
       : undefined;
-    app.lastRace = { race: saved, ghost: prevBest, isBest: isBetter(saved, prevBest), place, fieldSize: field.length + 1 };
-    setTimeout(() => go('result'), open ? 300 : 2500);
+    const dist = result.traveledM || result.distance;
+    const board = racers
+      .map((r) => ({
+        name: r.name,
+        country: r.country.code,
+        timeMs: r.me ? result.finishMs : timeAt(r.trace(), dist),
+        me: r.me,
+        ghost: r.ghost,
+      }))
+      .sort((a, b) => (a.timeMs ?? Infinity) - (b.timeMs ?? Infinity));
+    const best = isBetter(saved, prevBest);
+    app.lastRace = { race: saved, ghost: prevBest, isBest: best, place, fieldSize: field.length + 1, field: board, courseName: course.name };
+    // 결승 연출: 무대 위에 기록·순위를 크게 띄운 뒤 결과 화면으로
+    const fo = $('#finish');
+    fo.innerHTML = `<div class="fo-card">
+      <span class="fo-label">FINISH</span>
+      ${place ? `<b class="fo-place">${place}<small>위</small></b>` : ''}
+      <b class="fo-time">${formatTime(result.finishMs)}</b>
+      <span class="fo-sub">${open ? `${(dist / 1000).toFixed(2)}km · ` : ''}${fmtPace(result.avgPaceSec)}/500m${best && prevBest ? ' · 신기록!' : ''}</span>
+    </div>`;
+    fo.hidden = false;
+    setTimeout(() => go('result'), open ? 1500 : 3500);
   }
 
   $('#quit').addEventListener('click', () => {
@@ -224,9 +249,27 @@ export function mountRace(root: HTMLElement) {
       if (!saving) finish();
       return;
     }
+    if (engine.phase === 'racing' && !confirm('기권하면 이번 기록은 저장되지 않습니다. 기권할까요?')) return;
     auto?.setRunning(false);
     go('connect');
   });
+
+  // 전체 화면 (태블릿 가로 화면용)
+  $('#fs').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const el = $('.race3d');
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else el.requestFullscreen?.().catch(() => {});
+  });
+
+  // 레이스 중 화면 꺼짐 방지
+  let wake: WakeLockSentinel | null = null;
+  const lockScreen = () => {
+    if ('wakeLock' in navigator && document.visibilityState === 'visible')
+      navigator.wakeLock.request('screen').then((w) => (wake = w), () => {});
+  };
+  lockScreen();
+  document.addEventListener('visibilitychange', lockScreen);
   const setCam = (m: CameraMode) => {
     if (!view) return;
     view.cameraMode = m;
@@ -375,9 +418,10 @@ export function mountRace(root: HTMLElement) {
     if (now - hudAt > 100) {
       hudAt = now;
       $('#clock').textContent = formatTime(Math.max(0, elapsed));
-      const passed = Math.floor(myD / 250) * 250;
-      $('#mark').textContent = passed > 0 ? `${passed}M` : '';
-      $('#mark').hidden = passed === 0;
+      const passed = Math.floor((myD + 0.5) / 250) * 250;
+      const done = engine.phase === 'finished';
+      $('#mark').textContent = done ? 'FINISH' : passed > 0 ? `${passed}M` : '';
+      $('#mark').hidden = !done && passed === 0;
       renderStandings(tDisp, elapsed);
       minimap?.update(Object.fromEntries(racers.map((r) => [r.id, r.me ? myD : distanceAt(r.trace(), tDisp)])));
 
@@ -412,6 +456,9 @@ export function mountRace(root: HTMLElement) {
 
   return () => {
     destroyed = true;
+    wake?.release().catch(() => {});
+    document.removeEventListener('visibilitychange', lockScreen);
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     view?.destroy();
     minimap?.destroy();
     cancelAnimationFrame(raf);

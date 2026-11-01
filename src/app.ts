@@ -19,6 +19,9 @@ export interface LastRace {
   /** 컴퓨터 선수와 함께 탄 경우 내 순위 */
   place?: number;
   fieldSize?: number;
+  /** 결승 순위표 (나·고스트·컴퓨터) */
+  field?: { name: string; country: string; timeMs: number | null; me?: boolean; ghost?: boolean }[];
+  courseName?: string;
 }
 
 export const app = {
@@ -113,6 +116,24 @@ export function formatTime(ms: number) {
 }
 
 /** 고스트 대비 차이 표기. 음수 = 앞섬. |v| < 0.05는 동률 */
+/** 초/500m → m:ss.0 */
+export function fmtPace(sec: number) {
+  if (!sec || !Number.isFinite(sec)) return '-:--.-';
+  const t = Math.floor(sec * 10); // 로잉 표기 관례: 0.1초 단위 버림 (기록 표기와 일치)
+  return `${Math.floor(t / 600)}:${((t % 600) / 10).toFixed(1).padStart(4, '0')}`;
+}
+
+/** 뒤로 가기용 아이콘 등 공용 SVG */
+export const ICON = {
+  back: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+  arrow: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  bt: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7l10 10-5 5V2l5 5L7 17"/></svg>',
+  auto: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z"/></svg>',
+  tap: '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11V5a2 2 0 014 0v6"/><path d="M13 10a2 2 0 014 0v4a6 6 0 01-6 6h-1a6 6 0 01-5-3l-1.5-3a1.6 1.6 0 012.6-1.8L9 15"/></svg>',
+  full: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+  trophy: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0z"/><path d="M17 5h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/></svg>',
+};
+
 export function formatDiff(v: number, unit: string) {
   if (Math.abs(v) < 0.05) return { text: `±0.0${unit}`, cls: 'even' };
   return { text: `${v < 0 ? '−' : '+'}${Math.abs(v).toFixed(1)}${unit}`, cls: v < 0 ? 'ahead' : 'behind' };

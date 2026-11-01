@@ -273,11 +273,11 @@ export class RaceView3D {
         break;
       }
       case 'finish': {
-        // 결승선 옆 탑에서 다가오는 배를 비스듬히
-        cam.fov = 30;
-        const finishRace = this.opts.raceDistance;
-        cam.position.copy(at(finishRace + 4, -(this.lanes / 2) * LANE_W - 14, 7));
-        cam.lookAt(at(Math.min(focus, finishRace) - 6, midLane, 0.5));
+        // 결승선 너머 물 위에서 다가오는 배들을 정면으로: 결승 게이트 현수막이 화면 위에 걸리게
+        cam.fov = 34;
+        const fin = Number.isFinite(this.opts.raceDistance) ? this.opts.raceDistance : focus;
+        cam.position.copy(at(fin + 55, midLane * 0.5, 10));
+        cam.lookAt(at(Math.min(focus, fin) - 15, midLane * 0.5, 0));
         break;
       }
     }
