@@ -40,7 +40,7 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
 // 치수 (m)
 const PIN_X = -0.08;
-const PIN_Y = 0.3;
+const PIN_Y = 0.33;
 const PIN_Z = 0.8;
 const INBOARD = 0.88;
 const OUTBOARD = 1.95; // 핀에서 블레이드 중심까지
@@ -54,7 +54,7 @@ const TORSO = 0.55;
 const UPPER_ARM = 0.31;
 const FOREARM = 0.31;
 const CATCH_ANGLE = (54 * Math.PI) / 180; // 블레이드가 뱃머리 쪽
-const FINISH_ANGLE = (-38 * Math.PI) / 180; // 피니시: 손잡이가 갈비뼈 앞에서 좌우로 벌어진다
+const FINISH_ANGLE = (-25 * Math.PI) / 180; // 피니시: 손잡이가 배꼽~갈비뼈 앞에 온다 (실제 경기 영상 기준)
 
 export class Scull {
   readonly group = new THREE.Group();
@@ -212,7 +212,8 @@ export class Scull {
       const foot = W(FOOT.clone().add(V(0.02, 0.02, z)));
       h.limb(`UpperLeg.${side}`, `LowerLeg.${side}`, `Foot.${side}`, foot, up.clone().add(W(V(0, 0, z)).sub(W(V(0, 0, 0)))), h.len.thigh, h.len.shin);
       // 팔: 손잡이, 팔꿈치는 바깥·아래로
-      const out = W(V(0, -0.5, z * 8)).sub(W(V(0, 0, 0))).normalize();
+      // 팔꿈치는 몸 뒤(뱃머리 +x)·아래로, 옆으로는 조금만 (닭날개 방지)
+      const out = W(V(0.75, -0.55, z * 2.5)).sub(W(V(0, 0, 0))).normalize();
       h.limb(`UpperArm.${side}`, `LowerArm.${side}`, `Hand.${side}`, W(J.hand[side]), out, h.len.upper, h.len.fore);
     }
   }
@@ -241,7 +242,7 @@ export class Scull {
       const u = p / driveFrac;
       sweep = CATCH_ANGLE + (FINISH_ANGLE - CATCH_ANGLE) * ease(u);
       seat = ease(clamp01(u / 0.65));
-      lean = 0.42 - 0.72 * ease(clamp01((u - 0.25) / 0.6));
+      lean = 0.45 - 0.71 * ease(clamp01((u - 0.25) / 0.6));
       bladeY = u < 0.06 ? 0.12 - (0.2 * u) / 0.06 : u > 0.94 ? -0.08 + (0.22 * (u - 0.94)) / 0.06 : -0.08;
       feather = u > 0.96 ? (u - 0.96) / 0.04 : 0;
     } else {
@@ -249,7 +250,7 @@ export class Scull {
       const v = (p - driveFrac) / (1 - driveFrac);
       sweep = FINISH_ANGLE + (CATCH_ANGLE - FINISH_ANGLE) * ease(v);
       seat = 1 - ease(clamp01((v - 0.3) / 0.7));
-      lean = -0.3 + 0.72 * ease(clamp01(v / 0.45));
+      lean = -0.26 + 0.71 * ease(clamp01(v / 0.45));
       bladeY = 0.14 + 0.04 * Math.sin(v * Math.PI);
       feather = v < 0.85 ? 1 : 1 - (v - 0.85) / 0.15;
     }
