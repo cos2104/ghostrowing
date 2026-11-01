@@ -8,29 +8,46 @@ import {
   parseGeneralStatus,
 } from '../src/pm5/parse';
 import { IntervalStats } from '../src/stats';
+import capture from './fixtures/pm5-justrow-520m.json';
 
-// TODO(실측 패킷으로 교체): 아래 hex는 사양 레이아웃에 맞춰 직접 만든 합성 샘플이다.
-// 갤럭시탭에서 받은 "패킷 기록"이 오면 실제 값으로 바꾼다.
+// 실측 패킷: 2026-11-01 PM5 Just Row 약 520m (tests/fixtures/pm5-justrow-520m.json)
+// 운동 시작 55.29초 시점 (t=60161ms)
+const ROWING = {
+  general: '991500ff0900010101010200000000000080e3',
+  add1: '9915005c1223ffbf29342a000000000000',
+  add2: '9915000016011400342a16011400000000000000',
+};
+// 젓기를 멈춘 뒤 (121.66초, 519.7m)
+const STOPPED = {
+  general: '862f004d1400010101000100000000000080df',
+  add1: '862f00c90e22ffc933bd2d000000000000',
+  add2: '862f0000da002500b62dda002500000000080200',
+};
+// Just Row 시작 전: 이전 운동의 값(645.2초, 1944.7m)이 남아 있음
+const BEFORE_START = '08fc00f74b0001010000000000000000008000';
 
-describe('0x0031 일반 상태', () => {
-  it('경과 시간·거리를 리틀 엔디언 3바이트로 해석', () => {
-    // 경과 12345 (123.45s) = 0x003039 → 39 30 00
-    // 거리 5123 (512.3m)   = 0x001403 → 03 14 00
-    // 운동 종류 1, 인터벌 종류 0, 운동 상태 1, 젓기 상태 1, 스트로크 상태 2, 이후 8바이트
-    const v = hexToDataView('393000 031400 01 00 01 01 02 000000 000000 00 7b');
-    const g = parseGeneralStatus(v);
-    expect(g.elapsedSec).toBeCloseTo(123.45);
-    expect(g.distanceM).toBeCloseTo(512.3);
-    expect(g.workoutType).toBe(1);
-    expect(g.workoutState).toBe(1);
-    expect(g.rowingState).toBe(1);
-    expect(g.strokeState).toBe(2);
+describe('0x0031 일반 상태 (실측)', () => {
+  it('젓는 중', () => {
+    const g = parseGeneralStatus(hexToDataView(ROWING.general));
+    expect(g.elapsedSec).toBeCloseTo(55.29);
+    expect(g.distanceM).toBeCloseTo(255.9);
+    expect(g.workoutType).toBe(1); // Just Row
+    expect(g.workoutState).toBe(1); // 운동 중
+    expect(g.rowingState).toBe(1); // 젓는 중
   });
 
-  it('3바이트 최대 범위 (상위 바이트 사용)', () => {
-    // 거리 0x0186A0 = 100000 → 10000.0m
-    const g = parseGeneralStatus(hexToDataView('000000 a08601 0000000000'));
-    expect(g.distanceM).toBeCloseTo(10000);
+  it('멈춘 뒤에는 rowingState 0', () => {
+    const g = parseGeneralStatus(hexToDataView(STOPPED.general));
+    expect(g.elapsedSec).toBeCloseTo(121.66);
+    expect(g.distanceM).toBeCloseTo(519.7);
+    expect(g.rowingState).toBe(0);
+  });
+
+  it('시작 전에는 이전 운동 값이 남아 있다 (거리 기준점 처리 필요)', () => {
+    const g = parseGeneralStatus(hexToDataView(BEFORE_START));
+    expect(g.elapsedSec).toBeCloseTo(645.2);
+    expect(g.distanceM).toBeCloseTo(1944.7);
+    expect(g.workoutState).toBe(0);
   });
 
   it('짧은 패킷은 에러', () => {
@@ -38,34 +55,68 @@ describe('0x0031 일반 상태', () => {
   });
 });
 
-describe('0x0032 추가 상태 1', () => {
-  it('속도·스트로크레이트·페이스 해석', () => {
-    // 경과 100.00s = 0x002710 → 10 27 00
-    // 속도 4.167 m/s = 4167 = 0x1047 → 47 10
-    // spm 28 = 0x1c, 심박 255(없음)
-    // 현재 페이스 2:00.0 = 12000 = 0x2ee0 → e0 2e
-    // 평균 페이스 1:55.5 = 11550 = 0x2d1e → 1e 2d
-    const a = parseAdditionalStatus1(hexToDataView('102700 4710 1c ff e02e 1e2d 0000 000000'));
-    expect(a.elapsedSec).toBeCloseTo(100);
-    expect(a.speedMps).toBeCloseTo(4.167);
-    expect(a.strokeRate).toBe(28);
-    expect(a.heartRate).toBeNull();
-    expect(a.currentPaceSec).toBeCloseTo(120);
-    expect(a.averagePaceSec).toBeCloseTo(115.5);
+describe('0x0032 추가 상태 1 (실측)', () => {
+  it('속도·스트로크레이트·페이스', () => {
+    const a = parseAdditionalStatus1(hexToDataView(ROWING.add1));
+    expect(a.elapsedSec).toBeCloseTo(55.29);
+    expect(a.speedMps).toBeCloseTo(4.7);
+    expect(a.strokeRate).toBe(35);
+    expect(a.heartRate).toBeNull(); // 심박계 없음 = 255
+    expect(a.currentPaceSec).toBeCloseTo(106.87);
+    expect(a.averagePaceSec).toBeCloseTo(108.04);
   });
 
-  it('심박이 있으면 숫자', () => {
-    const a = parseAdditionalStatus1(hexToDataView('000000 0000 00 96 0000 0000'));
-    expect(a.heartRate).toBe(150);
+  it('페이스는 속도와 일치한다 (500 / 속도)', () => {
+    const a = parseAdditionalStatus1(hexToDataView(STOPPED.add1));
+    expect(a.currentPaceSec).toBeCloseTo(500 / a.speedMps, 0);
   });
 });
 
-describe('0x0033 추가 상태 2', () => {
-  it('평균 파워 해석', () => {
-    // 경과 0, 인터벌 0, 평균 파워 203 = 0x00cb → cb 00, 칼로리 42 → 2a 00
-    const a = parseAdditionalStatus2(hexToDataView('000000 00 cb00 2a00 0000 0000 0000 000000 000000'));
-    expect(a.averagePowerW).toBe(203);
-    expect(a.totalCalories).toBe(42);
+describe('0x0033 추가 상태 2 (실측)', () => {
+  it('평균 파워·칼로리', () => {
+    const a = parseAdditionalStatus2(hexToDataView(ROWING.add2));
+    expect(a.averagePowerW).toBe(278);
+    expect(a.totalCalories).toBe(20);
+  });
+
+  it('평균 파워는 평균 페이스로 계산한 값과 같다 (운동 전체 평균)', () => {
+    const p1 = parseAdditionalStatus1(hexToDataView(STOPPED.add1));
+    const p2 = parseAdditionalStatus2(hexToDataView(STOPPED.add2));
+    expect(p2.averagePowerW).toBe(218);
+    expect(Math.abs(paceToWatts(p1.averagePaceSec) - p2.averagePowerW)).toBeLessThan(2);
+  });
+});
+
+describe('실측 기록 전체', () => {
+  const packets = capture.packets as { t: number; ch: string; hex: string }[];
+
+  it('모든 패킷이 해석된다', () => {
+    for (const p of packets) {
+      const v = hexToDataView(p.hex);
+      if (p.ch === '0031') parseGeneralStatus(v);
+      else if (p.ch === '0032') parseAdditionalStatus1(v);
+      else parseAdditionalStatus2(v);
+    }
+  });
+
+  it('운동이 시작된 뒤 거리는 줄지 않는다', () => {
+    const general = packets
+      .filter((p) => p.ch === '0031')
+      .map((p) => parseGeneralStatus(hexToDataView(p.hex)))
+      .filter((g) => g.workoutState !== 0);
+    expect(general.length).toBeGreaterThan(400);
+    for (let i = 1; i < general.length; i++) {
+      expect(general[i].distanceM).toBeGreaterThanOrEqual(general[i - 1].distanceM);
+    }
+  });
+
+  it('0x0031 간격 통계가 완료 기준을 통과한다', () => {
+    const s = new IntervalStats();
+    for (const p of packets) if (p.ch === '0031') s.add(p.t);
+    expect(s.longGaps).toBe(0);
+    expect(s.avgGap).toBeGreaterThan(240);
+    expect(s.avgGap).toBeLessThan(260);
+    expect(s.passed(s.lastAt!)).toBe(true);
   });
 });
 
@@ -85,13 +136,6 @@ describe('변환', () => {
 });
 
 describe('간격 통계', () => {
-  it('250ms 간격 2분이면 통과', () => {
-    const s = new IntervalStats();
-    for (let t = 0; t <= 120_000; t += 250) s.add(t);
-    expect(s.avgGap).toBe(250);
-    expect(s.longGaps).toBe(0);
-    expect(s.passed(120_100)).toBe(true);
-  });
   it('400ms 넘는 공백이 있으면 실패', () => {
     const s = new IntervalStats();
     for (let t = 0; t <= 60_000; t += 250) s.add(t);

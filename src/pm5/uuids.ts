@@ -1,5 +1,6 @@
 // Concept2 PM5 Bluetooth Smart Interface Definition 기준 UUID.
-// TODO(사양서 확인): 아래 값은 모두 공식 사양서와 대조해 확인할 것.
+// rowingService·0x0031~0x0034는 실제 PM5 연결로 동작 확인함 (2026-11-01).
+// TODO(사양서 확인): discoveryService·deviceInfoService는 아직 공식 사양서와 대조하지 않음.
 
 const BASE = '-43e5-11e4-916c-0800200c9a66';
 const uuid = (short: string) => `ce06${short}${BASE}`;
@@ -23,6 +24,6 @@ export const PM5 = {
 
 /**
  * 0x0034에 쓰는 주기 값.
- * TODO(사양서 확인): 0=1s, 1=500ms, 2=250ms, 3=100ms
+ * 0=1s, 1=500ms, 2=250ms, 3=100ms. 2(250ms)는 실측으로 확인함.
  */
 export const SAMPLE_RATE_250MS = 2;

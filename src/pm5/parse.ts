@@ -1,5 +1,5 @@
 // PM5 특성 바이트 해석. 모든 다중 바이트 값은 리틀 엔디언.
-// TODO(사양서 확인): 바이트 위치와 단위는 공식 사양서와 실측 패킷으로 검증할 것.
+// 바이트 위치와 단위는 2026-11-01 실측 패킷으로 검증함 (tests/fixtures/pm5-justrow-520m.json).
 
 export interface GeneralStatus {
   /** 경과 시간 (초) — 원본은 0.01초 단위 3바이트 */
@@ -30,7 +30,7 @@ export interface AdditionalStatus1 {
 export interface AdditionalStatus2 {
   elapsedSec: number;
   intervalCount: number;
-  /** 평균 파워 (W) */
+  /** 운동 전체 평균 파워 (W). 순간 파워가 아님 — 실측으로 확인 */
   averagePowerW: number;
   /** 총 칼로리 (kcal) */
   totalCalories: number;
