@@ -259,6 +259,17 @@ export class Human {
     this.aim(b, c, target);
   }
 
+  /** 뼈 n을 부모 뼈(p)→n 방향(전완 장축 등) 기준으로 angle만큼 비튼다 */
+  twistAbout(n: BoneName, from: BoneName, angle: number) {
+    const bone = this.bones[n];
+    const axis = this.bonePos(n).sub(this.bonePos(from)).normalize();
+    const wq = bone.getWorldQuaternion(new THREE.Quaternion());
+    wq.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, angle));
+    const pq = bone.parent!.getWorldQuaternion(new THREE.Quaternion()).invert();
+    bone.quaternion.copy(pq.multiply(wq));
+    bone.updateMatrixWorld(true);
+  }
+
   dispose() {
     for (const m of this.materials) m.dispose();
   }
