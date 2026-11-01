@@ -39,24 +39,24 @@ const ease = (t: number) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(
 const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
 // 치수 (m)
-const PIN_X = -0.08;
+const PIN_X = -0.22;
 const PIN_Y = 0.33;
 const PIN_Z = 0.8;
 /** 손 회전: 전완 장축 기준 +90° (좌우 거울 대칭) */
 const HAND_TWIST = Math.PI / 2;
-const INBOARD = 0.78; // 손잡이가 몸 중앙선을 넘지 않게 (좌우 손이 엇갈리지 않고 대칭으로 움직임)
+const INBOARD = 0.9; // 손잡이가 몸 앞에서 조금 겹친다 (겹칠 때 왼손이 위)
 const OUTBOARD = 1.95; // 핀에서 블레이드 중심까지
 const FOOT = V(-0.55, 0.12, 0);
 const SEAT_Y = 0.2;
-const SEAT_CATCH = -0.05;
-const SEAT_FINISH = 0.33;
+const SEAT_CATCH = -0.16;
+const SEAT_FINISH = 0.4;
 const THIGH = 0.46;
 const SHIN = 0.46;
 const TORSO = 0.55;
 const UPPER_ARM = 0.31;
 const FOREARM = 0.31;
-const CATCH_ANGLE = (54 * Math.PI) / 180; // 블레이드가 뱃머리 쪽
-const FINISH_ANGLE = (-25 * Math.PI) / 180; // 피니시: 손잡이가 배꼽~갈비뼈 앞에 온다 (실제 경기 영상 기준)
+const CATCH_ANGLE = (66 * Math.PI) / 180; // 캐치: 노가 뱃머리 쪽으로 배와 거의 나란히
+const FINISH_ANGLE = (-48 * Math.PI) / 180; // 피니시: 노가 선미 쪽으로 깊게
 
 export class Scull {
   readonly group = new THREE.Group();
@@ -216,7 +216,11 @@ export class Scull {
       // 팔: 손잡이, 팔꿈치는 바깥·아래로
       // 팔꿈치는 몸 뒤(뱃머리 +x)·아래로, 옆으로는 조금만 (닭날개 방지)
       const out = W(V(0.75, -0.55, z * 2.5)).sub(W(V(0, 0, 0))).normalize();
-      h.limb(`UpperArm.${side}`, `LowerArm.${side}`, `Hand.${side}`, W(J.hand[side]), out, h.len.upper, h.len.fore);
+      // 손목이 아니라 손바닥 가운데가 손잡이에 오도록: 손목 목표를 어깨 쪽으로 7.5cm 당긴다
+      const grip = W(J.hand[side]);
+      const sh = h.bonePos(`UpperArm.${side}`);
+      const wrist = grip.clone().sub(grip.clone().sub(sh).normalize().multiplyScalar(0.075));
+      h.limb(`UpperArm.${side}`, `LowerArm.${side}`, `Hand.${side}`, wrist, out, h.len.upper, h.len.fore);
       // 손: 전완 장축 기준 90° 회전 (좌우 거울 대칭)
       h.twistAbout(`Hand.${side}`, `LowerArm.${side}`, HAND_TWIST * (side === 'L' ? 1 : -1));
     }
@@ -289,8 +293,9 @@ export class Scull {
       bladeC.y = bladeY;
       const shaftDir = bladeC.clone().sub(pin).normalize();
       const handle = pin.clone().sub(shaftDir.clone().multiplyScalar(INBOARD));
-      // 좌우 대칭: 손은 항상 자기 쪽에 (중앙선에서 최소 6cm)
-      handle.z = sign * Math.max(0.0, handle.z * sign);
+      // 손잡이 교차 구간: 왼쪽 노(+z) 손잡이가 위로 지나가 서로 부딪히지 않게
+      const cross = Math.min(1, Math.max(0, (0.15 - handle.z * sign) / 0.2));
+      handle.y += sign > 0 ? 0.045 * cross : -0.025 * cross;
       const tip = pin.clone().add(shaftDir.clone().multiplyScalar(OUTBOARD + 0.22));
       place(P[`shaft${s}`], handle, bladeC);
       const blade = P[`blade${s}`];
@@ -305,7 +310,7 @@ export class Scull {
       // 손은 손잡이 끝(중앙 쪽)이 아니라 그립 가운데를 잡는다
       const hand = handle.clone().add(shaftDir.clone().multiplyScalar(0.07));
       // 캐릭터 기준: 선미를 보고 앉으므로 +z 쪽 노는 왼손
-      this.joints.hand[sign > 0 ? 'L' : 'R'].copy(hand);
+      this.joints.hand[sign > 0 ? 'L' : 'R'].copy(hand); // 왼쪽 노(+z) = 왼손, 오른쪽 노 = 오른손
       const elbow = ik(shoulder, hand, UPPER_ARM, FOREARM, V(0.2, -0.6, 0.8 * sign));
       place(P[`upper${s}`], shoulder, elbow);
       place(P[`fore${s}`], elbow, hand);
