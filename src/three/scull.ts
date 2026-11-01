@@ -42,8 +42,8 @@ const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 const PIN_X = -0.08;
 const PIN_Y = 0.33;
 const PIN_Z = 0.8;
-/** 손 회전: 전완 장축 기준 -90° → 손등이 위, 손가락이 손잡이를 아래에서 감싸는 오버핸드 그립 */
-const HAND_TWIST = -Math.PI / 2;
+/** 손 회전: 전완 장축 기준 +90° (좌우 거울 대칭) */
+const HAND_TWIST = Math.PI / 2;
 const INBOARD = 0.78; // 손잡이가 몸 중앙선을 넘지 않게 (좌우 손이 엇갈리지 않고 대칭으로 움직임)
 const OUTBOARD = 1.95; // 핀에서 블레이드 중심까지
 const FOOT = V(-0.55, 0.12, 0);
