@@ -73,6 +73,12 @@ export function mountConnect(root: HTMLElement) {
     </section>
 
     <div class="row end">
+      <label class="inline">화질
+        <select id="quality">
+          <option value="high">높음 (물 반사)</option>
+          <option value="low">가벼움 (느린 기기용)</option>
+        </select>
+      </label>
       <button id="start" class="big">레이스 시작</button>
     </div>
   `;
@@ -118,6 +124,10 @@ export function mountConnect(root: HTMLElement) {
       app.course = COURSES.find((c) => c.id === b.dataset.course)!;
     }),
   );
+
+  const quality = $<HTMLSelectElement>('#quality');
+  quality.value = app.quality;
+  quality.addEventListener('change', () => (app.quality = quality.value === 'low' ? 'low' : 'high'));
 
   $('#start').addEventListener('click', () => go('race'));
 
