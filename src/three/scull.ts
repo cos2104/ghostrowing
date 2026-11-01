@@ -46,7 +46,7 @@ const INBOARD = 0.9; // 손잡이가 몸 앞에서 조금 겹친다 (겹칠 때 
 const OUTBOARD = 1.95; // 핀에서 블레이드 중심까지
 const FOOT = V(-0.55, 0.12, 0);
 const SEAT_Y = 0.2;
-const SEAT_CATCH = -0.16;
+const SEAT_CATCH = -0.2;
 const SEAT_FINISH = 0.4;
 const THIGH = 0.46;
 const SHIN = 0.46;
@@ -217,10 +217,11 @@ export class Scull {
       // 팔꿈치는 몸 뒤(뱃머리 +x)·아래로, 옆으로는 조금만 (닭날개 방지)
       // 팔꿈치는 바깥(옆)·약간 아래로 벌려 양팔이 역하트 모양이 되게 (상완이 몸통을 파고들지 않게)
       const out = W(V(0.15, -0.45, z * 9)).sub(W(V(0, 0, 0))).normalize();
-      // 손: 노 각도와 상관없이 배와 나란하게(손가락이 뱃머리 쪽), 손목에서 전완과 약간만 꺾이게.
+      // 손: 노 각도와 상관없이 배와 나란하게(손가락이 선수 정면=선미 쪽), 손목에서 전완과 약간만 꺾이게.
       // 손등은 위, 검지→새끼 마디 줄은 바깥쪽. 주먹 중심이 손잡이 위에 오도록 손목 목표를 보정한다.
       const grip = W(J.hand[side]);
-      const boatFwd = W(V(1, 0, 0)).sub(W(V(0, 0, 0))).normalize();
+      // 선수는 선미(-x)를 보고 앉는다 → 손가락은 선수 정면(-x) 쪽
+      const boatFwd = W(V(-1, 0, 0)).sub(W(V(0, 0, 0))).normalize();
       const outward = W(V(0, 0, z > 0 ? 1 : -1)).sub(W(V(0, 0, 0))).normalize();
       let wrist = grip.clone().sub(boatFwd.clone().multiplyScalar(0.07));
       for (let it = 0; it < 3; it++) {
@@ -258,7 +259,7 @@ export class Scull {
       const u = p / driveFrac;
       sweep = CATCH_ANGLE + (FINISH_ANGLE - CATCH_ANGLE) * ease(u);
       seat = ease(clamp01(u / 0.65));
-      lean = 0.45 - 0.71 * ease(clamp01((u - 0.25) / 0.6));
+      lean = 0.62 - 0.88 * ease(clamp01((u - 0.25) / 0.6));
       bladeY = u < 0.06 ? 0.12 - (0.2 * u) / 0.06 : u > 0.94 ? -0.08 + (0.22 * (u - 0.94)) / 0.06 : -0.08;
       feather = u > 0.96 ? (u - 0.96) / 0.04 : 0;
     } else {
@@ -266,7 +267,7 @@ export class Scull {
       const v = (p - driveFrac) / (1 - driveFrac);
       sweep = FINISH_ANGLE + (CATCH_ANGLE - FINISH_ANGLE) * ease(v);
       seat = 1 - ease(clamp01((v - 0.3) / 0.7));
-      lean = -0.26 + 0.71 * ease(clamp01(v / 0.45));
+      lean = -0.26 + 0.88 * ease(clamp01(v / 0.45));
       bladeY = 0.14 + 0.04 * Math.sin(v * Math.PI);
       feather = v < 0.85 ? 1 : 1 - (v - 0.85) / 0.15;
     }
