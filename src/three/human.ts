@@ -259,6 +259,53 @@ export class Human {
     this.aim(b, c, target);
   }
 
+  /**
+   * 손을 노 손잡이에 맞춰 돌린다. shaftOut: 손잡이→노받이(바깥) 방향(월드).
+   * 검지→새끼 마디 줄을 shaftOut과 나란히, 손목은 전완과 일직선.
+   * 돌린 뒤 주먹 중심(검지·새끼 마디 가운데) 월드 위치를 돌려준다.
+   */
+  orientGrip(side: 'L' | 'R', shaftOut: THREE.Vector3): THREE.Vector3 | null {
+    const f = this.fingerBases(side);
+    if (!f) return null;
+    const hand = this.bones[`Hand.${side}`];
+    const W = this.bonePos(`Hand.${side}`);
+    const F1 = f[0].getWorldPosition(new THREE.Vector3());
+    const F4 = f[1].getWorldPosition(new THREE.Vector3());
+    const k = F4.clone().sub(F1).normalize();
+    const fw = F1.clone().add(F4).multiplyScalar(0.5).sub(W);
+    fw.sub(k.clone().multiplyScalar(fw.dot(k))).normalize();
+    const kw = shaftOut.clone().normalize();
+    const arm = W.clone().sub(this.bonePos(`LowerArm.${side}`)).normalize();
+    const fw2 = arm.sub(kw.clone().multiplyScalar(arm.dot(kw)));
+    if (fw2.lengthSq() < 1e-6) return null;
+    fw2.normalize();
+    const B = new THREE.Matrix4().makeBasis(k, fw, k.clone().cross(fw));
+    const B2 = new THREE.Matrix4().makeBasis(kw, fw2, kw.clone().cross(fw2));
+    const R = new THREE.Quaternion().setFromRotationMatrix(B2.multiply(B.transpose()));
+    const wq = hand.getWorldQuaternion(new THREE.Quaternion()).premultiply(R);
+    const pq = hand.parent!.getWorldQuaternion(new THREE.Quaternion()).invert();
+    hand.quaternion.copy(pq.multiply(wq));
+    hand.updateMatrixWorld(true);
+    const a = f[0].getWorldPosition(new THREE.Vector3());
+    const b = f[1].getWorldPosition(new THREE.Vector3());
+    // 주먹 중심: 마디 가운데에서 손바닥 쪽으로 조금
+    return a.add(b).multiplyScalar(0.5);
+  }
+
+  private fingerCache = new Map<string, [THREE.Object3D, THREE.Object3D] | null>();
+  private fingerBases(side: 'L' | 'R') {
+    if (!this.fingerCache.has(side)) {
+      let i: THREE.Object3D | undefined;
+      let p: THREE.Object3D | undefined;
+      this.model.traverse((o) => {
+        if (o.name === `Bip01_${side}_Finger1`) i = o;
+        if (o.name === `Bip01_${side}_Finger4`) p = o;
+      });
+      this.fingerCache.set(side, i && p ? [i, p] : null);
+    }
+    return this.fingerCache.get(side)!;
+  }
+
   /** 뼈 n을 부모 뼈(p)→n 방향(전완 장축 등) 기준으로 angle만큼 비튼다 */
   twistAbout(n: BoneName, from: BoneName, angle: number) {
     const bone = this.bones[n];
