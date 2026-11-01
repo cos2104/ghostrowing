@@ -1,5 +1,8 @@
 // 화면 사이에서 공유하는 상태와 해시 라우팅.
 
+import { COURSES } from './courses/data';
+import type { CourseDef } from './courses/types';
+import { HAIRS, SHIRTS, type Character } from './render/sprites';
 import type { RowerSource } from './rower/types';
 import type { SavedRace } from './storage/races';
 
@@ -15,6 +18,22 @@ export const app = {
   source: null as RowerSource | null,
   distance: 500 as number,
   lastRace: null as LastRace | null,
+  get course(): CourseDef {
+    return COURSES.find((c) => c.id === safeGet('course')) ?? COURSES[0];
+  },
+  set course(c: CourseDef) {
+    safeSet('course', c.id);
+  },
+  get character(): Character {
+    const [hair, shirt] = safeGet('character').split('_');
+    return {
+      hair: (HAIRS as readonly string[]).includes(hair) ? (hair as Character['hair']) : 'brown',
+      shirt: (SHIRTS as readonly string[]).includes(shirt) ? (shirt as Character['shirt']) : 'blue',
+    };
+  },
+  set character(c: Character) {
+    safeSet('character', `${c.hair}_${c.shirt}`);
+  },
   get name(): string {
     return safeGet('name') || '나';
   },

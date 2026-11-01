@@ -48,7 +48,7 @@ lobby ──(방장 출발)──▶ countdown ──(startAt 도달)──▶ r
 | 영역 | 선택 | 메모 |
 | --- | --- | --- |
 | 프론트 | Vite + TypeScript | 프레임워크 없이 시작, 화면이 늘면 가벼운 UI 라이브러리 추가 |
-| 레이스 화면 | Canvas 2D | 가로 레인 코스, 60fps 보간 렌더링 |
+| 레이스 화면 | MapLibre GL JS + OpenFreeMap (실제 지도) | 실제 강 위 코스, 카메라가 내 배를 따라감. 지도를 못 쓰면 Canvas 2D 가로 레인으로 대체. 출처는 `ASSETS.md` |
 | 실시간 동기화 | Firebase Realtime Database + 익명 로그인 | 무료(Spark) 요금제로 소규모 운영 가능 |
 | 호스팅 | Vercel 또는 Firebase Hosting | Web Bluetooth는 HTTPS에서만 동작 |
 | 고스트 저장 | IndexedDB (기기 로컬) | 1차는 서버 저장 없음 |
@@ -87,6 +87,19 @@ rooms/{방코드}
 - `players/{uid}`, `live/{uid}`, `results/…/{uid}`는 그 uid 본인만 쓰기
 - `live/{uid}/d`는 숫자이고 이전 값보다 작아질 수 없음 (`racing` 중일 때)
 - 비정상 속도 차단: 페이스 값이 너무 빠르면 거부 (기준값은 0단계 실측 후 결정)
+
+## 코스 (실제 지도)
+
+결승선은 고정하고, 500·1000m는 출발선을 결승선 쪽으로 당긴다(실제 조정 경기 방식). 좌표는 `src/courses/data.ts`.
+
+| 코스 | 장소 | 내용 |
+| --- | --- | --- |
+| 미사리 조정경기장 | 하남 | 실제 2000m 조정 경기 코스. 남동쪽 출발, 북서쪽 결승 |
+| 한강 반포 | 서울 | 반포대교·세빛섬을 지나 동작대교 앞 결승 |
+| 헨리 템스강 | 영국 헨리온템스 | Henley Royal Regatta 코스. 템플 섬 출발 |
+| 찰스강 | 미국 보스턴 | Head of the Charles 출발점(BU 다리)에서 하버드 쪽 상류 |
+
+고스트는 코스와 상관없이 거리별 최고 기록을 쓴다. 배와 선수 그림은 Kenney(CC0) 에셋.
 
 ## 화면 목록
 

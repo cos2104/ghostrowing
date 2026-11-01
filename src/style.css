@@ -193,3 +193,49 @@ select, input {
   .menu, .preview, .result-grid { grid-template-columns: repeat(2, 1fr); }
   .race-top .gap { flex-basis: 100%; order: 3; font-size: 1.1rem; }
 }
+
+/* ── 실제 지도 레이스 ───────────────────── */
+.course-wrap { border-radius: 14px; overflow: hidden; background: #123247; }
+.map { width: 100%; height: min(62vh, 620px); }
+.map[hidden], #course[hidden] { display: none; }
+.course-chip {
+  position: absolute; left: 12px; top: 12px;
+  background: rgba(15, 20, 25, 0.75); padding: 6px 12px; border-radius: 999px; font-size: 0.9rem;
+}
+.progress {
+  position: absolute; left: 12px; right: 12px; bottom: 12px; height: 8px;
+  background: rgba(15, 20, 25, 0.6); border-radius: 999px;
+}
+.progress i {
+  position: absolute; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  border-radius: 50%; background: var(--accent); border: 2px solid #fff;
+}
+.progress i.ghost { background: #b9c6d3; opacity: 0.7; border-color: transparent; }
+.progress i[hidden] { display: none; }
+.map-boat canvas { display: block; filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35)); }
+.map-boat.ghost { opacity: 0.5; }
+.map-label {
+  background: rgba(15, 20, 25, 0.8); color: #fff; padding: 2px 8px; border-radius: 6px;
+  font-size: 13px; white-space: nowrap; pointer-events: none;
+}
+.map-label.me { background: var(--accent); color: #001526; font-weight: 700; }
+.map-label.ghost { opacity: 0.75; }
+
+.courses { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.course-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
+  background: #2b3540; color: var(--text); font-weight: normal; padding: 12px 14px;
+}
+.course-card b { font-size: 1.05rem; }
+.course-card span { color: var(--muted); font-size: 0.85rem; }
+.course-card small { color: var(--muted); font-size: 0.78rem; line-height: 1.35; }
+.course-card.selected { background: var(--accent); color: #001526; }
+.course-card.selected span, .course-card.selected small { color: #0b2a40; }
+
+.char-pick { display: flex; gap: 16px; align-items: center; }
+.char-preview { width: 60px; height: 114px; flex: none; }
+.char-opts { display: flex; flex-direction: column; gap: 8px; }
+.chip { min-height: 40px; padding: 8px 12px; background: #2b3540; color: var(--text); font-weight: normal; }
+.chip.selected { background: var(--accent); color: #001526; font-weight: 600; }
+
+@media (max-width: 900px) { .courses { grid-template-columns: repeat(2, 1fr); } }

@@ -67,10 +67,12 @@ export class TestSource implements RowerSource {
     return this.mode.type === 'manual';
   }
 
-  /** 자동 모드에서 젓기 시작·정지 */
-  setRunning(on: boolean) {
+  /** 자동 모드에서 젓기 시작·정지. from(clock ms)을 주면 그 시각부터 저은 것으로 계산 */
+  setRunning(on: boolean, from?: number) {
+    if (on) this.runFrom = from ?? clock.now();
     this.running = on;
   }
+  private runFrom = 0;
 
   private tick() {
     const now = clock.now();
@@ -79,8 +81,10 @@ export class TestSource implements RowerSource {
 
     let s: RowerSample;
     if (this.mode.type === 'auto') {
-      const pace = this.running ? this.mode.paceSec : 0;
-      if (pace > 0) this.autoDistance += (500 / pace) * dt;
+      const pace = this.running && now >= this.runFrom ? this.mode.paceSec : 0;
+      // 출발 시각 이전 구간은 빼고 적분
+      const movingSec = Math.max(0, Math.min(dt, (now - this.runFrom) / 1000));
+      if (pace > 0) this.autoDistance += (500 / pace) * movingSec;
       s = {
         at: now,
         distanceM: this.autoDistance,

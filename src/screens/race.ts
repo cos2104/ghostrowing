@@ -4,6 +4,9 @@ import { formatPace } from '../pm5/parse';
 import { COUNTDOWN_MS, RaceEngine } from '../race/engine';
 import { distanceAt, timeAt } from '../race/ghost';
 import { drawCourse } from '../render/course';
+import type { MapBoat, MapRace } from '../render/mapView';
+import { webglAvailable } from '../render/webgl';
+import { boatSprite } from '../render/sprites';
 import { TestSource } from '../rower/testSource';
 import { getBest, saveRace, type SavedRace } from '../storage/races';
 
@@ -24,13 +27,19 @@ export function mountRace(root: HTMLElement) {
   let saving = false;
   let storageError = '';
 
-  getBest(src.kind, distance)
+  const ghostReady = getBest(src.kind, distance)
     .then((g) => (ghost = g))
     .catch(() => (storageError = '기록 저장소(IndexedDB)를 사용할 수 없어 고스트와 기록 저장이 꺼집니다.'))
     .finally(() => (ghostLoaded = true));
 
+  const course = app.course;
+  let mapRace: MapRace | null = null;
+  let useMap = webglAvailable();
+  let mapNote = useMap ? '' : '이 기기에서는 지도를 표시할 수 없어 단순 코스로 표시합니다.';
+
   const auto = src instanceof TestSource ? src : null;
-  auto?.setRunning(false);
+  // 자동 젓기는 출발 시각에 정확히 시작하도록 예약
+  auto?.setRunning(true, engine.startAt);
 
   root.innerHTML = `
     <div class="race">
@@ -42,7 +51,10 @@ export function mountRace(root: HTMLElement) {
       </div>
       <p id="banner" class="banner"></p>
       <div class="course-wrap">
+        <div id="map" class="map"></div>
         <canvas id="course"></canvas>
+        <div class="course-chip">${course.name} · ${distance}m</div>
+        <div class="progress"><i id="p-ghost" class="ghost"></i><i id="p-me"></i></div>
         <div id="countdown" class="countdown"></div>
       </div>
       <section class="metrics">
@@ -56,6 +68,33 @@ export function mountRace(root: HTMLElement) {
   `;
   const $ = <T extends HTMLElement>(sel: string) => root.querySelector<T>(sel)!;
   const canvas = $<HTMLCanvasElement>('#course');
+  const mapEl = $('#map');
+  canvas.hidden = useMap;
+  mapEl.hidden = !useMap;
+
+  async function initMap() {
+    await ghostReady;
+    const me: MapBoat = { id: 'me', name: app.name, sprite: await boatSprite(app.character, 1), lane: 0.5, me: true };
+    const boats: MapBoat[] = [me];
+    if (ghost) boats.push({ id: 'ghost', name: `고스트 ${formatTime(ghost.finishMs)}`, sprite: await boatSprite(app.character, 2), lane: -0.5, ghost: true });
+    if (destroyed) return;
+    const { MapRace } = await import('../render/mapView'); // 지도 엔진은 필요할 때만 로드
+    if (destroyed) return;
+    mapRace = new MapRace(mapEl, course, distance, boats);
+    await mapRace.ready;
+  }
+  let destroyed = false;
+  if (useMap) {
+    initMap().catch((e) => {
+      console.warn('지도 실패, 단순 코스로 전환', e);
+      mapRace?.destroy();
+      mapRace = null;
+      useMap = false;
+      canvas.hidden = false;
+      mapEl.hidden = true;
+      mapNote = '지도를 불러오지 못해 단순 코스로 표시합니다.';
+    });
+  }
 
   const offSample = src.onSample((s) => {
     engine.push(s);
@@ -99,7 +138,6 @@ export function mountRace(root: HTMLElement) {
   const render = () => {
     const now = clock.now();
     engine.tick(now);
-    if (engine.phase === 'racing') auto?.setRunning(true);
 
     const elapsed = engine.elapsed(now);
     const tDisp = engine.finishMs ?? Math.max(0, elapsed - DISPLAY_DELAY_MS);
@@ -141,6 +179,7 @@ export function mountRace(root: HTMLElement) {
     const banner = $('#banner');
     if (src.status === 'disconnected') banner.textContent = '⚠ 로잉머신 연결이 끊겼습니다. 기권 후 다시 연결하세요.';
     else if (storageError) banner.textContent = storageError;
+    else if (mapNote && engine.phase === 'countdown') banner.textContent = mapNote;
     else if (engine.phase === 'countdown' && src.kind === 'pm5')
       banner.textContent = 'PM5를 Just Row 상태로 두고 GO 신호에 출발하세요.';
     else if (engine.phase === 'finished') banner.textContent = `🏁 결승! ${formatTime(engine.finishMs!)}`;
@@ -153,16 +192,27 @@ export function mountRace(root: HTMLElement) {
     $('#m-spm').textContent = s ? String(s.spm) : '-';
     $('#m-watts').textContent = s ? String(s.watts) : '-';
 
-    const boats = [];
-    if (ghost) boats.push({ name: `고스트 ${formatTime(ghost.finishMs)}`, distanceM: ghostD!, color: '#b9c6d3', ghost: true });
-    boats.push({ name: app.name, distanceM: myD, color: '#3fa9f5', highlight: true });
-    drawCourse(canvas, distance, boats);
+    $('#p-me').style.left = `${(myD / distance) * 100}%`;
+    const pg = $('#p-ghost');
+    pg.hidden = ghostD === null;
+    if (ghostD !== null) pg.style.left = `${(ghostD / distance) * 100}%`;
+
+    if (useMap) {
+      mapRace?.update({ me: myD, ghost: ghostD ?? 0 }, 'me');
+    } else {
+      const boats = [];
+      if (ghost) boats.push({ name: `고스트 ${formatTime(ghost.finishMs)}`, distanceM: ghostD!, color: '#b9c6d3', ghost: true });
+      boats.push({ name: app.name, distanceM: myD, color: '#3fa9f5', highlight: true });
+      drawCourse(canvas, distance, boats);
+    }
 
     raf = requestAnimationFrame(render);
   };
   render();
 
   return () => {
+    destroyed = true;
+    mapRace?.destroy();
     cancelAnimationFrame(raf);
     offSample();
     window.removeEventListener('keydown', onKey);

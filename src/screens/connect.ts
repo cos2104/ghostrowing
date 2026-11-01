@@ -1,5 +1,6 @@
 import { app, DISTANCES, formatTime, go, setSource } from '../app';
 import { clock } from '../clock';
+import { COURSES } from '../courses/data';
 import { formatPace } from '../pm5/parse';
 import { Pm5Source } from '../rower/pm5Source';
 import { TestSource } from '../rower/testSource';
@@ -55,6 +56,17 @@ export function mountConnect(root: HTMLElement) {
       </div>
     </section>
 
+    <section class="panel">
+      <h2>3. 코스 <small>실제 지도 · © OpenStreetMap</small></h2>
+      <div class="courses" id="courses">
+        ${COURSES.map(
+          (c) => `<button class="course-card" data-course="${c.id}">
+            <b>${c.name}</b><span>${c.region}</span><small>${c.description}</small>
+          </button>`,
+        ).join('')}
+      </div>
+    </section>
+
     <div class="row end">
       <button id="start" class="big">레이스 시작</button>
     </div>
@@ -96,6 +108,12 @@ export function mountConnect(root: HTMLElement) {
     }),
   );
 
+  root.querySelectorAll<HTMLButtonElement>('#courses .course-card').forEach((b) =>
+    b.addEventListener('click', () => {
+      app.course = COURSES.find((c) => c.id === b.dataset.course)!;
+    }),
+  );
+
   $('#start').addEventListener('click', () => go('race'));
 
   async function refreshBest() {
@@ -127,6 +145,10 @@ export function mountConnect(root: HTMLElement) {
     $('#p-watts').textContent = s ? `${s.watts}W` : '-';
     root.querySelectorAll<HTMLButtonElement>('#distances .choice').forEach((b) => {
       b.classList.toggle('selected', Number(b.dataset.d) === app.distance);
+    });
+    const courseId = app.course.id;
+    root.querySelectorAll<HTMLButtonElement>('#courses .course-card').forEach((b) => {
+      b.classList.toggle('selected', b.dataset.course === courseId);
     });
     $<HTMLButtonElement>('#start').disabled = !src || src.status !== 'connected';
     raf = requestAnimationFrame(render);
