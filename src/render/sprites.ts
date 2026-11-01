@@ -5,10 +5,16 @@ export const SHIRTS = ['blue', 'green', 'red', 'white'] as const;
 export type Hair = (typeof HAIRS)[number];
 export type Shirt = (typeof SHIRTS)[number];
 
+export const GENDERS = ['m', 'w'] as const;
+export type Gender = (typeof GENDERS)[number];
+
 export interface Character {
-  hair: Hair;
+  gender: Gender;
   shirt: Shirt;
 }
+
+/** 2D 미리보기용 머리색 */
+const hairOf = (ch: Character): Hair => (ch.gender === 'w' ? 'blonde' : 'brown');
 
 const BASE = `${import.meta.env.BASE_URL}assets/kenney/`;
 const cache = new Map<string, Promise<HTMLImageElement>>();
@@ -33,7 +39,7 @@ export const BOAT_H = 88;
 
 /** 뱃머리가 위(북)를 향하는 배 그림. 2배 해상도 캔버스 */
 export async function boatSprite(ch: Character, boat: 1 | 2 | 3 = 1): Promise<HTMLCanvasElement> {
-  const [hull, person] = await Promise.all([load(`dinghyLarge${boat}.png`), load(`character_${ch.hair}_${ch.shirt}.png`)]);
+  const [hull, person] = await Promise.all([load(`dinghyLarge${boat}.png`), load(`character_${hairOf(ch)}_${ch.shirt}.png`)]);
   const s = 2;
   const c = document.createElement('canvas');
   c.width = BOAT_W * s;
@@ -51,5 +57,5 @@ export async function boatSprite(ch: Character, boat: 1 | 2 | 3 = 1): Promise<HT
 }
 
 export function characterUrl(ch: Character) {
-  return `${BASE}character_${ch.hair}_${ch.shirt}.png`;
+  return `${BASE}character_${hairOf(ch)}_${ch.shirt}.png`;
 }

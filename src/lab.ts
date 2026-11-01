@@ -22,6 +22,8 @@ const d0 = Number(q.get('d') ?? 300);
 const spm = Number(q.get('spm') ?? 32);
 const boats = colors.map((c, i) => ({ s: new Scull(c, { ghost: i === 2 }), lane: i + 1, d: d0 - i * 3 }));
 for (const b of boats) world.scene.add(b.s.group);
+(window as any).boats = boats;
+if (q.get('human') !== '0') boats.forEach((b, i) => b.s.useHuman(i === 1 ? 'w_Casual' : 'm_Beach', [0x1f4fbf, 0xd62828, 0x222222][i]));
 const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 6000);
 const resize = () => { world.resize(canvas.clientWidth, canvas.clientHeight); camera.aspect = canvas.clientWidth / canvas.clientHeight; camera.updateProjectionMatrix(); };
 resize(); addEventListener('resize', resize);

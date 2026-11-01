@@ -1,8 +1,8 @@
 import { app, esc, go } from '../app';
 import { COUNTRIES, flagUrl } from '../countries';
-import { boatSprite, HAIRS, SHIRTS, type Character } from '../render/sprites';
+import { boatSprite, GENDERS, SHIRTS, type Character } from '../render/sprites';
 
-const HAIR_KO: Record<string, string> = { black: '검정', blonde: '금발', brown: '갈색' };
+const GENDER_KO: Record<string, string> = { m: '남자 선수', w: '여자 선수' };
 const SHIRT_KO: Record<string, string> = { blue: '파랑', green: '초록', red: '빨강', white: '흰색' };
 
 export function mountHome(root: HTMLElement) {
@@ -25,8 +25,8 @@ export function mountHome(root: HTMLElement) {
         <div class="char-pick">
           <div id="char-preview" class="char-preview"></div>
           <div class="char-opts">
-            <div class="row" id="hairs">${HAIRS.map((h) => `<button class="chip" data-hair="${h}">${HAIR_KO[h]} 머리</button>`).join('')}</div>
-            <div class="row" id="shirts">${SHIRTS.map((c) => `<button class="chip" data-shirt="${c}">${SHIRT_KO[c]} 옷</button>`).join('')}</div>
+            <div class="row" id="genders">${GENDERS.map((g) => `<button class="chip" data-gender="${g}">${GENDER_KO[g]}</button>`).join('')}</div>
+            <div class="row" id="shirts">${SHIRTS.map((c) => `<button class="chip" data-shirt="${c}">${SHIRT_KO[c]} 유니폼</button>`).join('')}</div>
           </div>
         </div>
       </div>
@@ -42,7 +42,7 @@ export function mountHome(root: HTMLElement) {
   let ch: Character = app.character;
   const preview = root.querySelector<HTMLElement>('#char-preview')!;
   async function refresh() {
-    root.querySelectorAll<HTMLButtonElement>('[data-hair]').forEach((b) => b.classList.toggle('selected', b.dataset.hair === ch.hair));
+    root.querySelectorAll<HTMLButtonElement>('[data-gender]').forEach((b) => b.classList.toggle('selected', b.dataset.gender === ch.gender));
     root.querySelectorAll<HTMLButtonElement>('[data-shirt]').forEach((b) => b.classList.toggle('selected', b.dataset.shirt === ch.shirt));
     try {
       const sprite = await boatSprite(ch);
@@ -53,9 +53,9 @@ export function mountHome(root: HTMLElement) {
       preview.textContent = '';
     }
   }
-  root.querySelectorAll<HTMLButtonElement>('[data-hair]').forEach((b) =>
+  root.querySelectorAll<HTMLButtonElement>('[data-gender]').forEach((b) =>
     b.addEventListener('click', () => {
-      ch = { ...ch, hair: b.dataset.hair as Character['hair'] };
+      ch = { ...ch, gender: b.dataset.gender as Character['gender'] };
       app.character = ch;
       refresh();
     }),

@@ -1,0 +1,4 @@
+Models by Quaternius (https://quaternius.com)
+Ultimate Nature Pack, Ultimate Modular Men Pack, Ultimate Modular Women Pack
+License: CC0 1.0 Universal (public domain)
+Source: github.com/trebeljahr/quaternius-showcase (public/glb)

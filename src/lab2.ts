@@ -23,14 +23,14 @@ Promise.all(trees.map((t) => L.loadAsync(`${Q}nature/${t}.glb`))).then((gs) => {
     o.position.set(x + i * 9, 0.7 - box.min.y * s, z + 10 + (i % 3) * 5);
     world.scene.add(o);
   });
-  const people = ['m_Casual', 'w_Casual', 'm_Beach', 'w_Formal', 'm_Suit', 'w_Worker'];
+  const people = ['m_Casual', 'm_Casual2', 'm_Beach', 'm_Worker', 'm_Farmer', 'm_Suit', 'w_Casual', 'w_Formal', 'w_Worker', 'w_Suit', 'w_Adventurer'];
   return Promise.all(people.map((p) => L.loadAsync(`${Q}people/${p}.glb`))).then((ps) => {
     ps.forEach((g, i) => {
       const o = g.scene;
       const box = new THREE.Box3().setFromObject(o);
       const s = 1.75 / (box.max.y - box.min.y);
       o.scale.setScalar(s);
-      o.position.set(x + 20 + i * 3, 0.7 - box.min.y * s, z + 4);
+      o.position.set(x + 20 + i * 2.2, 0.7 - box.min.y * s, z + 4);
       o.rotation.y = Math.PI;
       // 팔 내리기 (T포즈 → 차렷)
       o.traverse((b) => {
@@ -42,8 +42,9 @@ Promise.all(trees.map((t) => L.loadAsync(`${Q}nature/${t}.glb`))).then((gs) => {
     (window as any).ready = true;
   });
 });
-cam.position.set(x + 35, 4, z - 28);
-cam.lookAt(x + 40, 4, z + 10);
+cam.position.set(x + 31, 1.6, z - 6);
+cam.lookAt(x + 31, 1.4, z + 4);
+cam.fov = 62;
 cam.updateProjectionMatrix();
 function f() { world.render(cam, 0.016); requestAnimationFrame(f); }
 f();

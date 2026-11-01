@@ -6,7 +6,7 @@ import type { Track } from './track';
 
 export type Theme = 'lake' | 'city' | 'countryside' | 'brick' | 'grandloop';
 
-const BASE = `${import.meta.env.BASE_URL}assets/kenney3d/`;
+const BASE = `${import.meta.env.BASE_URL}assets/`;
 const loader = new GLTFLoader();
 
 interface ModelSpec {
@@ -36,10 +36,6 @@ function loadModel(file: string) {
           for (const mat of Array.isArray(m.material) ? m.material : [m.material]) {
             const sm = mat as THREE.MeshStandardMaterial;
             if (sm.isMeshStandardMaterial) {
-              const hsl = { h: 0, s: 0, l: 0 };
-              sm.color.getHSL(hsl);
-              if (file.startsWith('nature/') && hsl.h > 0.3 && hsl.h < 0.55) sm.color.setHSL(0.29, Math.min(0.55, hsl.s), hsl.l * 0.55);
-              else if (file.startsWith('nature/') && (hsl.h < 0.12 || hsl.h > 0.9) && hsl.l > 0.5) sm.color.setHSL(0.07, 0.4, 0.3);
               sm.metalness = 0;
               sm.roughness = Math.max(sm.roughness, 0.85);
               sm.envMapIntensity = 0.3;
@@ -69,36 +65,33 @@ interface Placement {
   z: number;
   rot: number;
   scale: number; // 크기 배율 (spec 기준 대비)
+  y?: number; // 바닥 높이 (기본: 강둑 0.7)
 }
 
+// 나무·덤불: Quaternius Ultimate Nature Pack (CC0)
+const q = (f: string, h: number): ModelSpec => ({ file: `quaternius/nature/${f}.glb`, size: { h } });
 const TREES: ModelSpec[] = [
-  { file: 'nature/tree_default.glb', size: { h: 11 } },
-  { file: 'nature/tree_oak.glb', size: { h: 13 } },
-  { file: 'nature/tree_detailed.glb', size: { h: 12 } },
-  { file: 'nature/tree_fat.glb', size: { h: 10 } },
-  { file: 'nature/tree_tall.glb', size: { h: 15 } },
-  { file: 'nature/tree_default_dark.glb', size: { h: 12 } },
-  { file: 'nature/tree_oak_dark.glb', size: { h: 14 } },
+  q('CommonTree_1', 12), q('CommonTree_2', 13), q('CommonTree_3', 11), q('CommonTree_4', 14), q('CommonTree_5', 12),
+  q('BirchTree_1', 13), q('BirchTree_2', 14), q('BirchTree_3', 12), q('Willow_1', 11), q('Willow_2', 12), q('Willow_3', 10),
 ];
-const PINES: ModelSpec[] = [
-  { file: 'nature/tree_pineRoundA.glb', size: { h: 14 } },
-  { file: 'nature/tree_pineTallA.glb', size: { h: 18 } },
-  { file: 'nature/tree_cone.glb', size: { h: 13 } },
-];
-const BUSH: ModelSpec = { file: 'nature/plant_bushLarge.glb', size: { h: 2.5 } };
-const TOWERS: ModelSpec[] = ['a', 'b', 'c', 'd', 'e'].map((k) => ({ file: `city/building-skyscraper-${k}.glb`, size: { h: 95 } }));
+const PINES: ModelSpec[] = [q('PineTree_1', 16), q('PineTree_2', 18), q('PineTree_3', 15)];
+const BUSHES: ModelSpec[] = [q('Bush_1', 2.2), q('Bush_2', 2.6), q('BushBerries_1', 2.0)];
+const GRASS: ModelSpec[] = [q('Grass', 0.7), q('Grass_2', 0.8), q('Flowers', 0.6)];
+const ROCK: ModelSpec = q('Rock_1', 1.6);
+const LILY: ModelSpec = { file: 'quaternius/nature/Lilypad.glb', size: { w: 1.6 } };
+const TOWERS: ModelSpec[] = ['a', 'b', 'c', 'd', 'e'].map((k) => ({ file: `kenney3d/city/building-skyscraper-${k}.glb`, size: { h: 95 } }));
 const BLOCKS: ModelSpec[] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n'].map((k) => ({
-  file: `city/building-${k}.glb`,
+  file: `kenney3d/city/building-${k}.glb`,
   size: { w: 26 },
 }));
 const HOUSES: ModelSpec[] = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l'].map((k) => ({
-  file: `suburb/building-type-${k}.glb`,
+  file: `kenney3d/suburb/building-type-${k}.glb`,
   size: { w: 14 },
 }));
-const GRANDSTAND: ModelSpec = { file: 'racing/grandStandCovered.glb', size: { w: 34 } };
+const GRANDSTAND: ModelSpec = { file: 'kenney3d/racing/grandStandCovered.glb', size: { w: 34 } };
 const BANNER: ModelSpec[] = [
-  { file: 'racing/bannerTowerRed.glb', size: { h: 7 } },
-  { file: 'racing/bannerTowerGreen.glb', size: { h: 7 } },
+  { file: 'kenney3d/racing/bannerTowerRed.glb', size: { h: 7 } },
+  { file: 'kenney3d/racing/bannerTowerGreen.glb', size: { h: 7 } },
 ];
 
 export class Scenery {
@@ -115,11 +108,11 @@ export class Scenery {
     this.plan();
   }
 
-  private add(spec: ModelSpec, d: number, offset: number, r: () => number, opts: { face?: boolean; scale?: number } = {}) {
+  private add(spec: ModelSpec, d: number, offset: number, r: () => number, opts: { face?: boolean; scale?: number; y?: number } = {}) {
     const f = this.frameAt(d, offset);
     const rot = opts.face ? -f.heading + (offset > 0 ? Math.PI : 0) : r() * Math.PI * 2;
     const list = this.placements.get(spec) ?? [];
-    list.push({ x: f.x, z: f.z, rot, scale: opts.scale ?? 0.8 + r() * 0.45 });
+    list.push({ x: f.x, z: f.z, rot, scale: opts.scale ?? 0.8 + r() * 0.45, y: opts.y });
     this.placements.set(spec, list);
   }
 
@@ -151,8 +144,12 @@ export class Scenery {
         const th = segTheme(d);
         if (th === 'city' && r() < 0.6) continue;
         const off = side * (W + 6 + r() * 22);
-        this.add(th === 'lake' && r() < 0.35 ? pick(PINES) : pick(TREES), d + r() * 6, off, r);
-        if (r() < 0.25) this.add(BUSH, d + r() * 8, side * (W + 3 + r() * 4), r);
+        this.add(th === 'lake' && r() < 0.3 ? pick(PINES) : pick(TREES), d + r() * 6, off, r);
+        if (r() < 0.35) this.add(pick(BUSHES), d + r() * 8, side * (W + 2.5 + r() * 5), r);
+        if (r() < 0.5 * dense) this.add(pick(GRASS), d + r() * 9, side * (W + 1 + r() * 10), r, { scale: 1 + r() });
+        if (r() < 0.04) this.add(ROCK, d + r() * 9, side * (W - 1 + r() * 2), r);
+        // 물가 연잎 (레인 밖 강둑 가까이)
+        if (th !== 'city' && r() < 0.18 * dense) this.add(LILY, d + r() * 9, side * (W - 4 - r() * 10), r, { scale: 0.7 + r() * 0.6, y: 0.02 });
       }
     }
     // 뒤쪽 숲·건물 띠
@@ -204,7 +201,7 @@ export class Scenery {
           list.forEach((p, i) => {
             const s = base * p.scale;
             q.setFromAxisAngle(up, p.rot);
-            m.compose(new THREE.Vector3(p.x, 0.7 - minY * s, p.z), q, new THREE.Vector3(s, s, s)).multiply(part.local);
+            m.compose(new THREE.Vector3(p.x, (p.y ?? 0.7) - minY * s, p.z), q, new THREE.Vector3(s, s, s)).multiply(part.local);
             inst.setMatrixAt(i, m);
           });
           inst.frustumCulled = false;
@@ -224,7 +221,7 @@ export class Scenery {
     const finish = this.track.loop ? 0 : this.track.length;
     for (let k = 0; k < 12; k++) {
       const d = finish - 320 + k * 26;
-      const f = this.frameAt(d, this.waterHalf + 7);
+      const f = this.frameAt(d, this.waterHalf + 15);
       const c = document.createElement('canvas');
       c.width = 512;
       c.height = 96;
@@ -249,7 +246,7 @@ export class Scenery {
   private addHills() {
     if (this.theme === 'city') return;
     const r = rng(42);
-    const mat = new THREE.MeshStandardMaterial({ color: 0x3f5a3a, roughness: 1, flatShading: true });
+    const mat = new THREE.MeshStandardMaterial({ color: 0x7d9a8c, roughness: 1, flatShading: true });
     const geo = new THREE.ConeGeometry(1, 1, 7);
     const { from, to } = this.range;
     const n = 26;
@@ -260,7 +257,7 @@ export class Scenery {
       for (let k = 0; k < n; k++) {
         const d = from + ((to - from) * (k + r())) / n;
         const f = this.frameAt(d, side * (this.waterHalf + 900 + r() * 900));
-        const h = 120 + r() * 260;
+        const h = 60 + r() * 170;
         const w = 500 + r() * 600;
         m.compose(new THREE.Vector3(f.x, h / 2 - 5, f.z), new THREE.Quaternion(), new THREE.Vector3(w, h, w));
         inst.setMatrixAt(i++, m);

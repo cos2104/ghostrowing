@@ -130,6 +130,7 @@ export function mountRace(root: HTMLElement) {
           ghost: r.ghost,
           me: r.me,
           shirt: r.me || r.ghost ? SHIRTS[app.character.shirt] : undefined,
+          human: app.character.gender === 'w' ? 'w_Casual' : 'm_Beach',
         })),
       });
     } else {
@@ -207,7 +208,7 @@ export function mountRace(root: HTMLElement) {
   let splitUntil = 0;
 
   function renderStandings(tDisp: number, elapsed: number) {
-    const pos = racers.map((r) => ({ r, d: r.me ? distanceAt(engine.trace, tDisp) : distanceAt(r.trace(), tDisp) }));
+    const pos = racers.map((r) => ({ r, d: r.me ? myDisplayD(tDisp) : distanceAt(r.trace(), tDisp) }));
     pos.sort((a, b) => b.d - a.d);
     const leader = pos[0];
     // 시간 차: 뒤쪽 배가 지금 있는 거리에 선두가 도달했던 시각과의 차이
@@ -238,6 +239,21 @@ export function mountRace(root: HTMLElement) {
     return pos;
   }
 
+  /**
+   * 화면에 그릴 내 거리. 샘플이 늦게 오면(화면 버벅임 등) 마지막 샘플 위치에 멈추지 않도록
+   * 현재 페이스로 최대 1.5초까지 앞으로 예측한다. 기록 계산에는 쓰지 않는다.
+   */
+  function myDisplayD(tDisp: number) {
+    const tr = engine.trace;
+    const last = tr[tr.length - 1];
+    if (engine.phase !== 'racing' || tDisp <= last[0]) return distanceAt(tr, tDisp);
+    const pace = src!.last?.paceSec ?? 0;
+    const speed = pace > 0 ? 500 / pace : 0;
+    const ahead = Math.min(tDisp - last[0], 1500) / 1000;
+    const d = last[1] + speed * ahead;
+    return Number.isFinite(distance) ? Math.min(d, distance) : d;
+  }
+
   let raf = 0;
   let hudAt = 0;
   const render = () => {
@@ -245,7 +261,7 @@ export function mountRace(root: HTMLElement) {
     engine.tick(now);
     const elapsed = engine.elapsed(now);
     const tDisp = engine.finishMs ?? Math.max(0, elapsed - DISPLAY_DELAY_MS);
-    const myD = distanceAt(engine.trace, tDisp);
+    const myD = myDisplayD(tDisp);
     const ghostR = racers.find((r) => r.ghost);
     const ghostD = ghostR ? distanceAt(ghostR.trace(), tDisp) : null;
 

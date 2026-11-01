@@ -2,6 +2,8 @@
 import * as THREE from 'three';
 import { drawFlag, type Country } from '../countries';
 import { Scenery, type Theme } from './scenery';
+import { Crowd } from './crowd';
+import type { HumanModel } from './human';
 import { Scull } from './scull';
 import { GRAND_LOOP, LoopTrack, StraightTrack, type Track } from './track';
 import { World } from './world';
@@ -15,6 +17,8 @@ export interface Boat3D {
   me?: boolean;
   /** 유니폼 색 (없으면 국가색) */
   shirt?: number;
+  /** 선수 캐릭터 (Quaternius) */
+  human?: HumanModel;
 }
 
 export interface BoatState {
@@ -52,6 +56,7 @@ export class RaceView3D {
   private phase: 'countdown' | 'racing' | 'finished' = 'countdown';
   private clockSec = 0;
   ready: Promise<void>;
+  private crowd: Crowd | null = null;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -75,6 +80,7 @@ export class RaceView3D {
       );
       this.world.scene.add(scull.group);
       this.boats.set(b.id, { def: b, scull });
+      scull.useHuman(b.human ?? 'm_Beach', b.shirt ?? b.country.kit).catch((e) => console.warn('선수 캐릭터 로드 실패', e));
       this.state[b.id] = { d: 0, spm: 0 };
     }
     this.addLaneCards();
@@ -84,6 +90,20 @@ export class RaceView3D {
     this.ready = scenery.build().then((g) => {
       this.world.scene.add(g);
     });
+    // 관중: 결승 앞 관중석 쪽 강둑과 출발 폰툰 옆 (가벼운 화질에서는 생략)
+    if (opts.quality === 'high') {
+      const W = this.world.waterHalf;
+      const spots: { d: number; offset: number }[] = [];
+      const fin = this.world.finishD || this.track.length;
+      if (opts.loop) {
+        for (let k = 0; k < 14; k++) spots.push({ d: 10 + k * 5, offset: (k % 2 ? 1 : -1) * (W + 4 + (k % 3) * 2) });
+      } else {
+        for (let k = 0; k < 24; k++) spots.push({ d: fin - 110 + k * 5 + (k % 2) * 1.5, offset: W + 4 + (k % 3) * 2.2 });
+        for (let k = 0; k < 8; k++) spots.push({ d: this.world.startD - 12 + k * 3.5, offset: -(W + 4 + (k % 2) * 2) });
+      }
+      this.crowd = new Crowd(this.track, spots);
+      this.crowd.build().then((g) => this.world.scene.add(g)).catch((e) => console.warn('관중 로드 실패', e));
+    }
 
     this.resizeObs = new ResizeObserver(() => this.resize());
     this.resizeObs.observe(canvas);
@@ -171,6 +191,7 @@ export class RaceView3D {
     for (const c of this.cards) c.visible = showCards;
 
     this.direct(now / 1000, me?.d ?? 0, ds);
+    this.crowd?.update(now / 1000, this.trackD(Math.max(...ds)));
     this.world.render(this.camera, dt);
     this.raf = requestAnimationFrame(this.frame);
   };
@@ -229,9 +250,9 @@ export class RaceView3D {
         break;
       }
       case 'aerial': {
-        cam.fov = 45;
-        cam.position.copy(at(focus - 55, midLane - 25, 38));
-        cam.lookAt(at(focus + 35, midLane, 0));
+        cam.fov = 40;
+        cam.position.copy(at(focus - 28, midLane - 14, 16));
+        cam.lookAt(at(focus + 12, midLane, 0));
         break;
       }
       case 'finish': {
@@ -265,6 +286,7 @@ export class RaceView3D {
     cancelAnimationFrame(this.raf);
     this.resizeObs.disconnect();
     for (const b of this.boats.values()) b.scull.dispose();
+    this.crowd?.dispose();
     this.world.dispose();
   }
 }

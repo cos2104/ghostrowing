@@ -1,6 +1,7 @@
 // 1인승 경기정(싱글 스컬)과 선수를 코드로 만든다. 노 젓기 동작은 스트로크레이트에 맞춰 움직인다.
 // 배 로컬 좌표: +x = 뱃머리(진행 방향), y = 위, z = 오른쪽(스트로크사이드). 선수는 뒤(-x, 선미)를 보고 앉는다.
 import * as THREE from 'three';
+import { Human, type HumanModel } from './human';
 
 export interface ScullStyle {
   hull: number; // 선체 색
@@ -60,8 +61,18 @@ export class Scull {
   private parts: Record<string, THREE.Mesh> = {};
   private phase = 0; // 0~1 스트로크 위치
   private materials: THREE.Material[] = [];
+  private human: Human | null = null;
+  private ghost = false;
+  private lastSpm = 0;
+  private resting = true;
+  private joints = {
+    hip: V(0, 0, 0),
+    lean: 0,
+    hand: { L: V(0, 0, 0), R: V(0, 0, 0) },
+  };
 
   constructor(style: ScullStyle, opts: { ghost?: boolean } = {}) {
+    this.ghost = !!opts.ghost;
     const skin = style.skin ?? 0xe0ac8a;
     const mat = (color: number, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) => {
       const m = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.05, ...extra });
@@ -161,6 +172,46 @@ export class Scull {
       this.phase = 0.999; // 다음 스트로크는 캐치 직전부터
       this.pose(0, true);
     }
+    this.applyHuman();
+  }
+
+  /** Quaternius 캐릭터로 선수 교체 (불러오는 동안은 기본 몸) */
+  async useHuman(model: HumanModel, shirt: number) {
+    const h = await Human.create(model, 1.82);
+    h.recolor('Body', shirt);
+    h.recolor('Legs', 0x16161a);
+    if (this.ghost) h.setGhost(0.42);
+    h.root.rotation.y = -Math.PI / 2; // 선미(-x)를 보게
+    this.group.add(h.root);
+    this.human = h;
+    for (const k of ['torso', 'head', 'cap', 'visor', 'hips', 'thighL', 'thighR', 'shinL', 'shinR', 'upperL', 'upperR', 'foreL', 'foreR', 'handL', 'handR'])
+      this.parts[k].visible = false;
+    this.applyHuman();
+  }
+
+  /** 계산해 둔 관절 위치로 캐릭터 뼈를 맞춘다 */
+  private applyHuman() {
+    const h = this.human;
+    if (!h) return;
+    const g = this.group;
+    g.updateMatrixWorld(true);
+    const W = (v: THREE.Vector3) => g.localToWorld(v.clone());
+    const J = this.joints;
+    h.resetPose();
+    h.moveHipsTo(W(J.hip.clone().add(V(0, -0.02, 0))));
+    // 상체 기울기: 엉덩이에서 목 방향
+    const abd = h.bonePos('Abdomen');
+    const leanDir = W(V(-Math.sin(J.lean), Math.cos(J.lean), 0).add(J.hip)).sub(W(J.hip)).normalize();
+    h.aim('Abdomen', 'Neck', abd.clone().add(leanDir.multiplyScalar(h.len.spine)));
+    // 다리: 발판, 무릎은 위로
+    const up = W(V(0, 1, 0)).sub(W(V(0, 0, 0))).normalize();
+    for (const [side, z] of [['L', 0.1], ['R', -0.1]] as const) {
+      const foot = W(FOOT.clone().add(V(0.02, 0.02, z)));
+      h.limb(`UpperLeg.${side}`, `LowerLeg.${side}`, `Foot.${side}`, foot, up.clone().add(W(V(0, 0, z)).sub(W(V(0, 0, 0)))), h.len.thigh, h.len.shin);
+      // 팔: 손잡이, 팔꿈치는 바깥·아래로
+      const out = W(V(0, -0.5, z * 8)).sub(W(V(0, 0, 0))).normalize();
+      h.limb(`UpperArm.${side}`, `LowerArm.${side}`, `Hand.${side}`, W(J.hand[side]), out, h.len.upper, h.len.fore);
+    }
   }
 
   /** 드라이브 중인가 (물보라 등 효과용) */
@@ -205,6 +256,8 @@ export class Scull {
     P.seat.position.set(seatX, 0.17, 0);
     const hip = V(seatX, SEAT_Y + 0.05, 0);
     P.hips.position.copy(hip);
+    this.joints.hip.copy(hip);
+    this.joints.lean = lean;
 
     // 상체: 엉덩이에서 위로, 선미(-x) 쪽으로 lean만큼 기울임
     const shoulderC = hip.clone().add(V(-Math.sin(lean) * TORSO, Math.cos(lean) * TORSO, 0));
@@ -240,6 +293,8 @@ export class Scull {
       // 팔: 어깨 → 손(손잡이)
       const shoulder = shoulderC.clone().add(V(0, -0.04, 0.19 * sign));
       const hand = handle.clone().add(V(0, 0, -0.03 * sign));
+      // 캐릭터 기준: 선미를 보고 앉으므로 +z 쪽 노는 왼손
+      this.joints.hand[sign > 0 ? 'L' : 'R'].copy(hand);
       const elbow = ik(shoulder, hand, UPPER_ARM, FOREARM, V(0.2, -0.6, 0.8 * sign));
       place(P[`upper${s}`], shoulder, elbow);
       place(P[`fore${s}`], elbow, hand);
@@ -255,6 +310,7 @@ export class Scull {
   }
 
   dispose() {
+    this.human?.dispose();
     this.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
     for (const m of this.materials) m.dispose();
   }

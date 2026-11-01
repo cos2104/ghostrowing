@@ -1,5 +1,6 @@
 // 3D 경기장: 물·하늘·조명·강둑·레인 부표·표지판·출발/결승 시설.
 import * as THREE from 'three';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { Water } from 'three/examples/jsm/objects/Water.js';
 import type { Track } from './track';
@@ -42,11 +43,11 @@ export class World {
     this.finishD = track.loop ? opts.raceDistance : track.length;
     this.startD = track.loop ? 0 : track.length - opts.raceDistance;
 
-    this.scene.fog = new THREE.Fog(0xcfe0ea, 900, 3200);
+    this.scene.fog = new THREE.Fog(0xc4d3e2, 1200, 4200);
     this.addSky();
     this.addLights();
     this.addWater(quality);
-    this.addBanks(opts.grass ?? 0x6f9f4a);
+    this.addBanks(opts.grass ?? 0x557f3a);
     this.addBuoys();
     this.addLaneMarkers();
     if (!track.loop) {
@@ -59,27 +60,44 @@ export class World {
     this.addDistanceBoards();
   }
 
+  /**
+   * 하늘: Poly Haven 실사 하늘(CC0, "Kloofendal 48d Partly Cloudy Pure Sky").
+   * 배경은 4K JPG, 조명·반사용 환경광은 1K HDR. 불러오기 전까지는 Sky 셰이더로 대신 그린다.
+   */
   private addSky() {
+    // 하늘 사진 속 태양 위치 (equirect u=0.602, 위에서 v=0.234 → 고도 약 48도)
+    const u = 0.602;
+    const vTop = 0.234;
+    const elev = (0.5 - vTop) * Math.PI;
+    const az = (u - 0.5) * Math.PI * 2;
+    this.sun.set(Math.cos(az) * Math.cos(elev), Math.sin(elev), Math.sin(az) * Math.cos(elev)).normalize();
+
     const sky = new Sky();
     sky.scale.setScalar(10000);
-    const u = sky.material.uniforms;
-    u.turbidity.value = 6;
-    u.rayleigh.value = 1.6;
-    u.mieCoefficient.value = 0.004;
-    u.mieDirectionalG.value = 0.8;
-    const phi = THREE.MathUtils.degToRad(90 - 32); // 태양 고도 32도
-    const theta = THREE.MathUtils.degToRad(200);
-    this.sun.setFromSphericalCoords(1, phi, theta);
-    u.sunPosition.value.copy(this.sun);
+    const su = sky.material.uniforms;
+    su.turbidity.value = 4;
+    su.rayleigh.value = 1.2;
+    su.sunPosition.value.copy(this.sun);
     this.scene.add(sky);
-    // 환경광용
+
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    const envScene = new THREE.Scene();
-    envScene.add(sky.clone());
-    const rt = pmrem.fromScene(envScene);
-    this.scene.environment = rt.texture;
-    this.scene.environmentIntensity = 0.35;
-    this.disposables.push(pmrem, rt);
+    this.disposables.push(pmrem);
+    const big = this.opts.quality === 'high';
+    new THREE.TextureLoader().load(`${BASE}assets/polyhaven/sky_${big ? '4k' : '2k'}.jpg`, (tex) => {
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      this.scene.background = tex;
+      this.scene.backgroundIntensity = 1;
+      this.scene.remove(sky);
+      this.disposables.push(tex);
+    });
+    new HDRLoader().load(`${BASE}assets/polyhaven/sky_1k.hdr`, (hdr) => {
+      const rt = pmrem.fromEquirectangular(hdr);
+      this.scene.environment = rt.texture;
+      this.scene.environmentIntensity = 0.6;
+      hdr.dispose();
+      this.disposables.push(rt);
+    });
   }
 
   private addLights() {

@@ -3,7 +3,7 @@
 import { countryByCode, type Country } from './countries';
 import { COURSES } from './courses/data';
 import type { CourseDef } from './courses/types';
-import { HAIRS, SHIRTS, type Character } from './render/sprites';
+import { SHIRTS, type Character } from './render/sprites';
 import type { RowerSource } from './rower/types';
 import type { SavedRace } from './storage/races';
 
@@ -29,14 +29,14 @@ export const app = {
     safeSet('course', c.id);
   },
   get character(): Character {
-    const [hair, shirt] = safeGet('character').split('_');
+    const [gender, shirt] = safeGet('character').split('_');
     return {
-      hair: (HAIRS as readonly string[]).includes(hair) ? (hair as Character['hair']) : 'brown',
+      gender: gender === 'w' ? 'w' : 'm',
       shirt: (SHIRTS as readonly string[]).includes(shirt) ? (shirt as Character['shirt']) : 'blue',
     };
   },
   set character(c: Character) {
-    safeSet('character', `${c.hair}_${c.shirt}`);
+    safeSet('character', `${c.gender}_${c.shirt}`);
   },
   get country(): Country {
     return countryByCode(safeGet('country') || 'KOR');
