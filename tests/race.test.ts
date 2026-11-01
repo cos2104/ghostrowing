@@ -84,12 +84,32 @@ describe('RaceEngine', () => {
     expect(e.finishMs!).toBeLessThan(125_000);
   });
 
+  it('출발 전 샘플이 하나뿐이고 다음 샘플이 한참 늦게 와도 그 사이 거리를 센다', () => {
+    const e = new RaceEngine(500, 5_000);
+    e.push(sample(4_000, 100)); // 출발 전 마지막 값 (정지)
+    e.push(sample(11_900, 131.4)); // 화면이 멈췄다가 6.9초 뒤 도착
+    expect(e.distanceM).toBeCloseTo(31.4);
+  });
+
   it('출발 전 샘플은 기록하지 않는다', () => {
     const e = new RaceEngine(500, 5_000);
     e.push(sample(1_000, 10));
     e.push(sample(4_000, 20));
     expect(e.phase).toBe('countdown');
     expect(e.trace).toEqual([[0, 0]]);
+  });
+});
+
+describe('무제한 레이스', () => {
+  it('끝날 때까지 결승하지 않고, 종료하면 저은 거리로 결과', () => {
+    const e = new RaceEngine(Infinity, 0);
+    constantRow(e, { from: 0, to: 300_000, speed: 4 });
+    expect(e.phase).toBe('racing');
+    e.stop(300_000);
+    const r = e.result()!;
+    expect(r.distance).toBe(0);
+    expect(r.traveledM).toBeCloseTo(1200, 0);
+    expect(r.avgPaceSec).toBeCloseTo(125, 0);
   });
 });
 
@@ -165,7 +185,7 @@ describe('테스트 모드 물리', () => {
 });
 
 describe('기록 저장 (IndexedDB)', () => {
-  const base = { avgPaceSec: 120, avgWatts: 203, avgSpm: 28, trace: [[0, 0]] as Trace, name: '나' };
+  const base = { avgPaceSec: 120, avgWatts: 203, avgSpm: 28, trace: [[0, 0]] as Trace, name: '나', traveledM: 500 };
 
   it('입력 방식·거리별 최고 기록을 고른다', async () => {
     await saveRace({ ...base, distance: 500, source: 'test', finishMs: 130_000 });
@@ -177,5 +197,12 @@ describe('기록 저장 (IndexedDB)', () => {
     expect((await getBest('test', 500))!.finishMs).toBe(118_000);
     expect((await getBest('pm5', 500))!.finishMs).toBe(100_000);
     expect(await getBest('pm5', 2000)).toBeNull();
+  });
+
+  it('무제한: 1분 이상 기록 중 평균 속도가 가장 빠른 것', async () => {
+    await saveRace({ ...base, distance: 0, source: 'test', finishMs: 30_000, traveledM: 200 }); // 너무 짧음
+    await saveRace({ ...base, distance: 0, source: 'test', finishMs: 600_000, traveledM: 2400 }); // 4.0 m/s
+    await saveRace({ ...base, distance: 0, source: 'test', finishMs: 120_000, traveledM: 510 }); // 4.25 m/s
+    expect((await getBest('test', 0))!.traveledM).toBe(510);
   });
 });

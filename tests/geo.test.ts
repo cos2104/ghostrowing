@@ -52,11 +52,36 @@ describe('Polyline', () => {
 });
 
 describe('코스 데이터', () => {
-  for (const c of COURSES) {
+  for (const c of COURSES.filter((c) => !c.loop)) {
     it(`${c.name}: 2000m 이상, 점 간격 30m 이하`, () => {
       const line = new Polyline(c.coords);
       expect(line.length).toBeGreaterThanOrEqual(2000);
       for (let i = 1; i < c.coords.length; i++) expect(distance(c.coords[i - 1], c.coords[i])).toBeLessThan(30);
     });
   }
+});
+
+describe('3D 트랙', async () => {
+  const { StraightTrack, LoopTrack, GRAND_LOOP } = await import('../src/three/track');
+  it('직선: 오른쪽 오프셋은 +z', () => {
+    const t = new StraightTrack(2000);
+    expect(t.frame(100, 5)).toMatchObject({ x: 100, z: 5, heading: 0 });
+  });
+  it('순환: 한 바퀴 4~6km, 길이를 넘으면 처음으로 돌아온다', () => {
+    const t = new LoopTrack(GRAND_LOOP);
+    expect(t.length).toBeGreaterThan(4000);
+    expect(t.length).toBeLessThan(6000);
+    const a = t.frame(10);
+    const b = t.frame(t.length + 10);
+    expect(b.x).toBeCloseTo(a.x, 3);
+    expect(b.z).toBeCloseTo(a.z, 3);
+  });
+  it('순환: 2m마다 위치가 약 2m씩 움직인다', () => {
+    const t = new LoopTrack(GRAND_LOOP);
+    for (let d = 0; d < t.length; d += 397) {
+      const p = t.frame(d);
+      const q = t.frame(d + 2);
+      expect(Math.hypot(q.x - p.x, q.z - p.z)).toBeCloseTo(2, 0);
+    }
+  });
 });

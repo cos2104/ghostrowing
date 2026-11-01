@@ -1,10 +1,15 @@
-import { app, DISTANCES, formatTime, go, setSource } from '../app';
+import { app, distanceLabel, DISTANCES, formatTime, go, setSource } from '../app';
 import { clock } from '../clock';
 import { COURSES } from '../courses/data';
 import { formatPace } from '../pm5/parse';
 import { Pm5Source } from '../rower/pm5Source';
 import { TestSource } from '../rower/testSource';
 import { getBest } from '../storage/races';
+
+function formatPaceShort(r: { finishMs: number; traveledM?: number }) {
+  const pace = (r.finishMs / 1000) * (500 / Math.max(1, r.traveledM ?? 0));
+  return `${Math.floor(pace / 60)}:${(pace % 60).toFixed(1).padStart(4, '0')}/500m`;
+}
 
 export function mountConnect(root: HTMLElement) {
   const fast = clock.speed() !== 1;
@@ -52,12 +57,12 @@ export function mountConnect(root: HTMLElement) {
     <section class="panel">
       <h2>2. 거리</h2>
       <div class="row" id="distances">
-        ${DISTANCES.map((d) => `<button class="choice" data-d="${d}">${d}m<small data-best="${d}"></small></button>`).join('')}
+        ${DISTANCES.map((d) => `<button class="choice" data-d="${d}">${distanceLabel(d)}<small data-best="${d}"></small></button>`).join('')}
       </div>
     </section>
 
     <section class="panel">
-      <h2>3. 코스 <small>실제 지도 · © OpenStreetMap</small></h2>
+      <h2>3. 코스 <small>무제한은 순환 코스에서만</small></h2>
       <div class="courses" id="courses">
         ${COURSES.map(
           (c) => `<button class="course-card" data-course="${c.id}">
@@ -124,7 +129,7 @@ export function mountConnect(root: HTMLElement) {
       if (!src) continue;
       try {
         const best = await getBest(src.kind, d);
-        el.textContent = best ? `최고 ${formatTime(best.finishMs)}` : '';
+        el.textContent = !best ? '' : d === 0 ? `최고 ${formatPaceShort(best)}` : `최고 ${formatTime(best.finishMs)}`;
       } catch {
         /* IndexedDB 불가 */
       }
@@ -143,8 +148,12 @@ export function mountConnect(root: HTMLElement) {
     $('#p-pace').textContent = s ? formatPace(s.paceSec) : '-';
     $('#p-spm').textContent = s ? String(s.spm) : '-';
     $('#p-watts').textContent = s ? `${s.watts}W` : '-';
+    // 무제한은 순환 코스에서만. 직선 코스로 바꾸면 2000m로
+    const loop = !!app.course.loop;
+    if (!loop && app.distance === 0) app.distance = 2000;
     root.querySelectorAll<HTMLButtonElement>('#distances .choice').forEach((b) => {
       b.classList.toggle('selected', Number(b.dataset.d) === app.distance);
+      b.disabled = Number(b.dataset.d) === 0 && !loop;
     });
     const courseId = app.course.id;
     root.querySelectorAll<HTMLButtonElement>('#courses .course-card').forEach((b) => {

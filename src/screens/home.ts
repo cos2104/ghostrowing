@@ -1,4 +1,5 @@
 import { app, esc, go } from '../app';
+import { COUNTRIES, flagUrl } from '../countries';
 import { boatSprite, HAIRS, SHIRTS, type Character } from '../render/sprites';
 
 const HAIR_KO: Record<string, string> = { black: '검정', blonde: '금발', brown: '갈색' };
@@ -12,6 +13,14 @@ export function mountHome(root: HTMLElement) {
       <label class="field">닉네임
         <input id="name" maxlength="12" value="${esc(app.name)}" autocomplete="off" />
       </label>
+      <div class="field">국가
+        <div class="country-pick">
+          <img id="flag" class="flag" alt="" />
+          <select id="country">
+            ${COUNTRIES.map((c) => `<option value="${c.code}" ${c.code === app.country.code ? 'selected' : ''}>${c.code} · ${c.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <div class="field">선수
         <div class="char-pick">
           <div id="char-preview" class="char-preview"></div>
@@ -59,6 +68,15 @@ export function mountHome(root: HTMLElement) {
     }),
   );
   refresh();
+
+  const sel = root.querySelector<HTMLSelectElement>('#country')!;
+  const flag = root.querySelector<HTMLImageElement>('#flag')!;
+  const showFlag = () => (flag.src = flagUrl(app.country, 60, 40));
+  showFlag();
+  sel.addEventListener('change', () => {
+    app.country = COUNTRIES.find((c) => c.code === sel.value)!;
+    showFlag();
+  });
 
   const name = root.querySelector<HTMLInputElement>('#name')!;
   name.addEventListener('change', () => (app.name = name.value));

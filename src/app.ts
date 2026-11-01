@@ -1,12 +1,16 @@
 // 화면 사이에서 공유하는 상태와 해시 라우팅.
 
+import { countryByCode, type Country } from './countries';
 import { COURSES } from './courses/data';
 import type { CourseDef } from './courses/types';
 import { HAIRS, SHIRTS, type Character } from './render/sprites';
 import type { RowerSource } from './rower/types';
 import type { SavedRace } from './storage/races';
 
-export const DISTANCES = [500, 1000, 2000] as const;
+/** 0 = 무제한 (순환 코스 전용) */
+export const DISTANCES = [500, 1000, 2000, 0] as const;
+
+export const distanceLabel = (d: number) => (d === 0 ? '무제한' : `${d}m`);
 
 export interface LastRace {
   race: SavedRace;
@@ -16,7 +20,7 @@ export interface LastRace {
 
 export const app = {
   source: null as RowerSource | null,
-  distance: 500 as number,
+  distance: 500 as number, // 0 = 무제한
   lastRace: null as LastRace | null,
   get course(): CourseDef {
     return COURSES.find((c) => c.id === safeGet('course')) ?? COURSES[0];
@@ -33,6 +37,19 @@ export const app = {
   },
   set character(c: Character) {
     safeSet('character', `${c.hair}_${c.shirt}`);
+  },
+  get country(): Country {
+    return countryByCode(safeGet('country') || 'KOR');
+  },
+  set country(c: Country) {
+    safeSet('country', c.code);
+  },
+  /** 3D 화질. 느린 기기는 low */
+  get quality(): 'high' | 'low' {
+    return safeGet('quality') === 'low' ? 'low' : 'high';
+  },
+  set quality(q: 'high' | 'low') {
+    safeSet('quality', q);
   },
   get name(): string {
     return safeGet('name') || '나';

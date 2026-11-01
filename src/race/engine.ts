@@ -7,7 +7,10 @@ export const COUNTDOWN_MS = 5000;
 export type Phase = 'countdown' | 'racing' | 'finished';
 
 export interface RaceResult {
+  /** 레이스 거리. 무제한이면 0 */
   distance: number;
+  /** 실제로 저은 거리 */
+  traveledM: number;
   finishMs: number;
   avgPaceSec: number;
   avgWatts: number;
@@ -88,14 +91,31 @@ export class RaceEngine {
 
     this.distanceM = d;
     const last = this.trace[this.trace.length - 1];
-    if (t > last[0]) this.trace.push([Math.round(t), Math.round(Math.max(d, last[1]) * 10) / 10]);
+    if (t > last[0]) this.trace.push([Math.round(t), Math.round(Math.max(d, last[1]) * 10) / 10, s.spm]);
+  }
+
+  /** 무제한 레이스를 지금 끝낸다 (거리 = 지금까지 저은 거리) */
+  stop(now: number) {
+    if (this.phase === 'finished') return;
+    const t = Math.max(0, Math.round(now - this.startAt));
+    this.finishMs = t;
+    const last = this.trace[this.trace.length - 1];
+    if (t > last[0]) this.trace.push([t, Math.round(this.distanceM * 10) / 10]);
+    this.phase = 'finished';
+  }
+
+  /** 거리 제한 없는 레이스인가 */
+  get open() {
+    return !Number.isFinite(this.distance);
   }
 
   result(): RaceResult | null {
     if (this.finishMs === null) return null;
-    const avgPaceSec = (this.finishMs / 1000) * (500 / this.distance);
+    const dist = this.open ? this.distanceM : this.distance;
+    const avgPaceSec = dist > 0 ? (this.finishMs / 1000) * (500 / dist) : 0;
     return {
-      distance: this.distance,
+      traveledM: Math.round(dist * 10) / 10,
+      distance: this.open ? 0 : this.distance,
       finishMs: this.finishMs,
       avgPaceSec,
       avgWatts: Math.round(paceToWatts(avgPaceSec)),

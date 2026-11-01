@@ -239,3 +239,87 @@ select, input {
 .chip.selected { background: var(--accent); color: #001526; font-weight: 600; }
 
 @media (max-width: 900px) { .courses { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── 3D 중계 화면 ───────────────────────── */
+[data-screen='race'] #app, #app[data-screen='race'] { max-width: 1400px; }
+.race3d .stage {
+  position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: 72vh;
+  border-radius: 14px; overflow: hidden; background: #9fc4d8;
+}
+.race3d .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.race3d .stage canvas[hidden] { display: none; }
+.hud { position: absolute; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
+.hud > * { position: absolute; }
+.hud-tl { left: 14px; top: 14px; display: flex; gap: 10px; align-items: flex-start; }
+.hud-tr { right: 14px; top: 14px; }
+.hud-bl { left: 14px; bottom: 14px; }
+.hud-br { right: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.hud .countdown { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(4rem, 12vw, 8rem); font-weight: 900; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.5); }
+.hud .countdown[hidden], .hud [hidden] { display: none !important; }
+.hud .banner { left: 50%; top: 14px; transform: translateX(-50%); background: rgba(10, 25, 45, 0.85); color: #fff; padding: 8px 16px; border-radius: 8px; margin: 0; white-space: nowrap; }
+
+.lights { display: flex; flex-direction: column; gap: 4px; padding: 6px; background: rgba(20,20,20,.75); border-radius: 22px; }
+.lights i { width: 26px; height: 26px; border-radius: 50%; background: #3a3a3a; }
+.lights[data-state='red'] i:first-child { background: #ff2a2a; box-shadow: 0 0 12px #ff2a2a; }
+.lights[data-state='green'] i:last-child { background: #3ee66b; box-shadow: 0 0 12px #3ee66b; }
+.lights[data-state='off'] { display: none; }
+
+.leader, .standings, .clockbox, .mark, .split {
+  background: linear-gradient(180deg, rgba(14, 42, 74, 0.94), rgba(8, 26, 48, 0.94));
+  color: #fff; border: 1px solid rgba(160, 210, 255, 0.35); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.3);
+}
+.leader { min-width: 280px; padding: 4px 0; }
+.lrow { display: grid; grid-template-columns: 46px 34px 1fr auto; align-items: center; gap: 8px; padding: 4px 12px; font-weight: 700; }
+.lrow + .lrow { border-top: 1px solid rgba(255,255,255,.12); }
+.lrow .code { color: #ffd34d; }
+.lrow .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px; }
+.lrow .val { font-size: 1.05rem; }
+.lrow.me .nm { color: #9fd3ff; }
+.hud img.flag { width: 30px; height: 20px; display: block; border-radius: 2px; }
+
+.standings { min-width: 210px; padding: 4px 0 6px; font-size: 0.95rem; }
+.shead { display: flex; justify-content: space-between; padding: 4px 12px 6px; font-weight: 800; letter-spacing: 0.04em; border-bottom: 1px solid rgba(255,255,255,.15); }
+.srow { display: grid; grid-template-columns: 22px 34px 1fr 40px; align-items: center; gap: 8px; padding: 4px 12px; font-weight: 700; }
+.srow .gp { color: #cfe3ff; text-align: right; }
+.srow .sp { text-align: right; }
+.srow.me { background: rgba(63, 169, 245, 0.25); }
+.srow.ghost { opacity: 0.75; }
+
+.clockbox { display: flex; align-items: center; gap: 10px; padding: 6px 14px; font-size: 1.6rem; font-weight: 800; }
+.clockbox b { font-size: 0.95rem; color: #ffd34d; }
+.mark { padding: 4px 14px; font-weight: 800; font-size: 1.1rem; }
+.split { left: 50%; top: 18%; transform: translateX(-50%); display: flex; gap: 14px; align-items: baseline; padding: 10px 18px; font-size: 1.4rem; font-weight: 800; }
+.split b { color: #ffd34d; }
+.split em { font-style: normal; }
+.split em.ahead { color: #5ef08f; } .split em.behind { color: #ff7a7a; }
+
+.minimap { width: 220px; height: 150px; border-radius: 8px; overflow: hidden; border: 1px solid rgba(160,210,255,.4); background: rgba(10,25,45,.6); }
+.minimap .mini-svg { width: 100%; height: 100%; display: block; }
+.minimap .maplibregl-ctrl-attrib { font-size: 9px; }
+.mini-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; }
+.mini-dot.me { width: 15px; height: 15px; }
+
+.cam-btn { right: 14px; top: 176px; pointer-events: auto; min-height: 40px; padding: 6px 12px; font-size: 0.85rem; background: rgba(10,25,45,.8); color: #fff; border: 1px solid rgba(160,210,255,.4); }
+
+.metrics.compact { grid-template-columns: repeat(5, 1fr); margin-top: 12px; }
+.metrics.compact .metric { padding: 10px 14px; }
+.metrics.compact output { font-size: clamp(1.5rem, 4vw, 2.6rem); }
+#m-gap.ahead { color: var(--ok); } #m-gap.behind { color: var(--bad); }
+.race-actions { margin-top: 12px; }
+.race-actions .row-pad { flex: 1; min-height: 90px; }
+.result-dist { font-size: 1.6rem; color: var(--muted); margin: 0 0 8px; }
+.country-pick { display: flex; gap: 10px; align-items: center; }
+.country-pick img.flag { width: 48px; height: 32px; border-radius: 3px; }
+.country-pick select { flex: 1; }
+
+@media (max-width: 900px) {
+  .metrics.compact { grid-template-columns: repeat(3, 1fr); }
+  .minimap { width: 140px; height: 100px; }
+  .cam-btn { top: 124px; }
+  .leader { min-width: 0; }
+  .lrow .nm { max-width: 80px; }
+  .standings { font-size: 0.8rem; min-width: 0; }
+}
+.minimap { position: relative; }
+.mini-attr { position: absolute; right: 0; bottom: 0; z-index: 2; font-size: 9px; color: #333; background: rgba(255,255,255,.75); padding: 1px 4px; border-top-left-radius: 4px; }
