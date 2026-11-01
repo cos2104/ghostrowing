@@ -39,7 +39,7 @@ function frame(now: number) {
     const f = track.frame(b.d, (b.lane + 0.5 - lanes / 2) * laneWidth);
     b.s.group.position.set(f.x, 0, f.z);
     b.s.group.rotation.y = -f.heading;
-    b.s.update(dt, spm);
+    if (q.get('ph') !== null) { (b.s as any).pose(Number(q.get('ph')), false, 30); (b.s as any).applyHuman(); } else b.s.update(dt, spm);
   }
   const me = boats[0];
   const f = track.frame(me.d, 0);
@@ -50,6 +50,7 @@ function frame(now: number) {
   else if (cam === 'f2') { const b = boats[1]; const p = track.frame(b.d - 2.4, (b.lane + 0.5 - lanes / 2) * laneWidth - 1.2); camera.position.set(p.x, 1.3, p.z); const t = track.frame(b.d, (b.lane + 0.5 - lanes / 2) * laneWidth); camera.lookAt(t.x, 0.7, t.z); camera.fov = 45; }
   else if (cam === 'start') { const p = right(30, -40); camera.position.set(p.x, 22, p.z); camera.lookAt(f.x + 40, 0, f.z - 5); camera.fov = 45; }
   else if (cam === 'crowd') { const D = Number(q.get('d') ?? 300); const p = track.frame(D + 14, world.waterHalf - 12); camera.position.set(p.x, 2.2, p.z); const t = track.frame(D + 26, world.waterHalf + 5); camera.lookAt(t.x, 1.3, t.z); camera.fov = 50; }
+  else if (cam === 'side2') { const t = track.frame(me.d, (me.lane + 0.5 - lanes / 2) * laneWidth); const p = track.frame(me.d - 0.5, (me.lane + 0.5 - lanes / 2) * laneWidth - 9); camera.position.set(p.x, 1.6, p.z); camera.lookAt(t.x - 0.3, 0.5, t.z); camera.fov = 30; }
   else if (cam === 'top') { camera.position.set(f.x, 600, f.z + 1); camera.lookAt(f.x, 0, f.z); camera.fov = 60; }
   camera.updateProjectionMatrix();
   crowd.update(now / 1000, Number(q.get('d') ?? 300) + 25);

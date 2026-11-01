@@ -240,8 +240,9 @@ export class RaceView3D {
         break;
       }
       case 'side': {
-        cam.fov = 11;
-        cam.position.copy(at(focus - 6, -this.world.waterHalf + 12, 5));
+        // 강둑에서 약간 뒤쪽 비스듬히: 정면 측면이면 가까운 노가 수직 막대처럼 보인다
+        cam.fov = 12;
+        cam.position.copy(at(focus - 24, -this.world.waterHalf + 12, 6.5));
         cam.lookAt(at(focus + 1.5, midLane, 0.5));
         break;
       }

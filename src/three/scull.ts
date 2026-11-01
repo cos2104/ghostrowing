@@ -54,7 +54,7 @@ const TORSO = 0.55;
 const UPPER_ARM = 0.31;
 const FOREARM = 0.31;
 const CATCH_ANGLE = (54 * Math.PI) / 180; // 블레이드가 뱃머리 쪽
-const FINISH_ANGLE = (-30 * Math.PI) / 180; // 피니시에서 손잡이가 가슴 앞에 오도록
+const FINISH_ANGLE = (-38 * Math.PI) / 180; // 피니시: 손잡이가 갈비뼈 앞에서 좌우로 벌어진다
 
 export class Scull {
   readonly group = new THREE.Group();
@@ -284,6 +284,11 @@ export class Scull {
       bladeC.y = bladeY;
       const shaftDir = bladeC.clone().sub(pin).normalize();
       const handle = pin.clone().sub(shaftDir.clone().multiplyScalar(INBOARD));
+      // 손잡이 겹침: 드라이브 중반 좌우 손잡이가 중앙선을 넘어 겹친다(실제로 약 16cm).
+      // 실제 스컬링처럼 왼손(+z)이 위·약간 앞, 오른손이 아래로 지나가게 높이를 나눈다.
+      const cross = Math.min(1, Math.max(0, (0.1 - handle.z * sign) / 0.2));
+      handle.y += sign > 0 ? 0.07 * cross : -0.035 * cross;
+      if (sign > 0) handle.x -= 0.04 * cross;
       const tip = pin.clone().add(shaftDir.clone().multiplyScalar(OUTBOARD + 0.22));
       place(P[`shaft${s}`], handle, bladeC);
       const blade = P[`blade${s}`];
@@ -295,7 +300,8 @@ export class Scull {
 
       // 팔: 어깨 → 손(손잡이)
       const shoulder = shoulderC.clone().add(V(0, -0.04, 0.19 * sign));
-      const hand = handle.clone().add(V(0, 0, -0.03 * sign));
+      // 손은 손잡이 끝(중앙 쪽)이 아니라 그립 가운데를 잡는다
+      const hand = handle.clone().add(shaftDir.clone().multiplyScalar(0.07));
       // 캐릭터 기준: 선미를 보고 앉으므로 +z 쪽 노는 왼손
       this.joints.hand[sign > 0 ? 'L' : 'R'].copy(hand);
       const elbow = ik(shoulder, hand, UPPER_ARM, FOREARM, V(0.2, -0.6, 0.8 * sign));
