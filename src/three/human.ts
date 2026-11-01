@@ -2,16 +2,26 @@
 // 애니메이션 없이, 매 프레임 "이 뼈가 저 점을 향하게"(aim)로 노 젓기·응원 동작을 만든다.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const ASSETS = `${import.meta.env.BASE_URL}assets/`;
 /** Rocketbox(MIT) 사실적 선수 모델 → 폴더 */
-const ROCKETBOX: Record<string, string> = { rb_male: 'Sports_Male_04', rb_female: 'Sports_Female_02' };
+const ROCKETBOX: Record<string, string> = {
+  rb_male: 'Sports_Male_04',
+  rb_female: 'Sports_Female_02',
+  fan_f1: 'Female_Adult_01',
+  fan_f3: 'Female_Adult_03',
+  fan_f12: 'Female_Adult_12',
+  fan_m1: 'Male_Adult_01',
+  fan_m8: 'Male_Adult_08',
+  fan_m12: 'Male_Adult_12',
+};
 const fileOf = (m: HumanModel) => (m in ROCKETBOX ? `${ASSETS}rocketbox/${ROCKETBOX[m]}/model.glb` : `${ASSETS}quaternius/people/${m}.glb`);
-const loader = new GLTFLoader();
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder); // 모델은 meshopt로 압축됨
 const cache = new Map<string, Promise<THREE.Object3D>>();
 
-export type HumanModel = 'rb_male' | 'rb_female' | 'm_Beach' | 'w_Casual' | 'm_Casual' | 'm_Suit' | 'm_Worker' | 'w_Formal' | 'w_Worker' | 'w_Adventurer';
+export type HumanModel = 'rb_male' | 'rb_female' | 'fan_f1' | 'fan_f3' | 'fan_f12' | 'fan_m1' | 'fan_m8' | 'fan_m12';
 
 function loadBase(model: HumanModel) {
   let p = cache.get(model);

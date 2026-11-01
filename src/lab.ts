@@ -4,6 +4,7 @@ import { Scull } from './three/scull';
 import { StraightTrack, LoopTrack, GRAND_LOOP } from './three/track';
 import { World } from './three/world';
 import { Scenery, type Theme } from './three/scenery';
+import { Crowd } from './three/crowd';
 
 const q = new URLSearchParams(location.search);
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -13,6 +14,8 @@ const lanes = 6, laneWidth = 13.5;
 const world = new World(canvas, { track, lanes, laneWidth, raceDistance: loop ? 0 : 2000, quality: (q.get('q') as 'high' | 'low') ?? 'high' });
 const sc = new Scenery(track, world.waterHalf, (q.get('theme') as Theme) ?? 'lake', loop ? { from: 0, to: track.length } : { from: -300, to: 2300 }, 'high');
 sc.build().then((g) => { world.scene.add(g); (window as any).sceneryReady = true; (window as any).scg = g; });
+const crowd = new Crowd(track, Array.from({ length: 12 }, (_, k) => ({ d: Number(q.get('d') ?? 300) + 10 + k * 3, offset: world.waterHalf + 4 + (k % 3) * 2 })));
+crowd.build().then((g) => world.scene.add(g));
 const colors = [
   { hull: 0xf2f2f0, shirt: 0x1f4fbf, cap: 0xffffff, blade: 0x1f4fbf },
   { hull: 0xf3d23a, shirt: 0xd62828, cap: 0xffffff, blade: 0xd62828 },
@@ -46,8 +49,10 @@ function frame(now: number) {
   else if (cam === 'front') { const p = track.frame(me.d - Number(q.get('fd') ?? 6.5), (me.lane + 0.5 - lanes / 2) * laneWidth - 1.5); camera.position.set(p.x, 1.5, p.z); const t = track.frame(me.d, (me.lane + 0.5 - lanes / 2) * laneWidth); camera.lookAt(t.x, 0.7, t.z); camera.fov = 45; }
   else if (cam === 'f2') { const b = boats[1]; const p = track.frame(b.d - 2.4, (b.lane + 0.5 - lanes / 2) * laneWidth - 1.2); camera.position.set(p.x, 1.3, p.z); const t = track.frame(b.d, (b.lane + 0.5 - lanes / 2) * laneWidth); camera.lookAt(t.x, 0.7, t.z); camera.fov = 45; }
   else if (cam === 'start') { const p = right(30, -40); camera.position.set(p.x, 22, p.z); camera.lookAt(f.x + 40, 0, f.z - 5); camera.fov = 45; }
+  else if (cam === 'crowd') { const D = Number(q.get('d') ?? 300); const p = track.frame(D + 14, world.waterHalf - 12); camera.position.set(p.x, 2.2, p.z); const t = track.frame(D + 26, world.waterHalf + 5); camera.lookAt(t.x, 1.3, t.z); camera.fov = 50; }
   else if (cam === 'top') { camera.position.set(f.x, 600, f.z + 1); camera.lookAt(f.x, 0, f.z); camera.fov = 60; }
   camera.updateProjectionMatrix();
+  crowd.update(now / 1000, Number(q.get('d') ?? 300) + 25);
   world.followShadow(f.x, f.z);
   world.render(camera, dt);
   (window as any).frames_ = ((window as any).frames_ ?? 0) + 1;

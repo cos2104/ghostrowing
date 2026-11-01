@@ -1,4 +1,6 @@
-import { app, esc, go } from '../app';
+import { app, esc, go, setSource } from '../app';
+import { COURSES } from '../courses/data';
+import { TestSource } from '../rower/testSource';
 import { COUNTRIES, flagUrl } from '../countries';
 import { boatSprite, GENDERS, SHIRTS, type Character } from '../render/sprites';
 
@@ -32,6 +34,7 @@ export function mountHome(root: HTMLElement) {
       </div>
       <div class="menu">
         <button id="solo" class="big">혼자 하기</button>
+        <button id="demo" class="big demo">데모 레이스 <small>로잉머신 없이 · 컴퓨터 선수 4명 · 500m</small></button>
         <button class="big secondary" disabled>방 만들기 <small>2단계</small></button>
         <button class="big secondary" disabled>코드로 입장 <small>2단계</small></button>
         <button class="big secondary" disabled>관전하기 <small>3단계</small></button>
@@ -80,6 +83,16 @@ export function mountHome(root: HTMLElement) {
 
   const name = root.querySelector<HTMLInputElement>('#name')!;
   name.addEventListener('change', () => (app.name = name.value));
+  // 데모: 실전형 자동 젓기 + 컴퓨터 선수로 바로 출발
+  root.querySelector('#demo')!.addEventListener('click', () => {
+    app.name = name.value;
+    setSource(new TestSource({ type: 'auto', paceSec: 112, spm: 30, profile: 'race' }));
+    if (app.course.loop) app.course = COURSES[0];
+    app.distance = 500;
+    app.aiCount = 4;
+    go('race');
+  });
+
   root.querySelector('#solo')!.addEventListener('click', () => {
     app.name = name.value;
     go('connect');

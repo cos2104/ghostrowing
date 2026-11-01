@@ -9,7 +9,10 @@ import type { Minimap } from '../render/minimap';
 import { webglAvailable } from '../render/webgl';
 import { TestSource } from '../rower/testSource';
 import { getBest, isBetter, saveRace, type SavedRace } from '../storage/races';
+import type { HumanModel } from '../three/human';
 import type { CameraMode, RaceView3D } from '../three/raceView';
+import { aiName, aiTrace } from '../race/ai';
+import { COUNTRIES } from '../countries';
 
 /** 화면 표시 지연. 샘플(250ms) 사이를 보간해 부드럽게 그리기 위함 */
 const DISPLAY_DELAY_MS = 250;
@@ -24,6 +27,9 @@ interface Racer {
   lane: number;
   ghost?: boolean;
   me?: boolean;
+  ai?: boolean;
+  human?: HumanModel;
+  uniform?: string;
   trace: () => Trace;
 }
 
@@ -55,6 +61,7 @@ export function mountRace(root: HTMLElement) {
   const auto = src instanceof TestSource ? src : null;
   // 자동 젓기는 출발 시각에 정확히 시작하도록 예약
   auto?.setRunning(true, engine.startAt);
+  auto?.setRaceDistance(distance);
 
   const me: Racer = { id: 'me', name: app.name, country: app.country, lane: course.loop ? 2 : 3, me: true, trace: () => engine.trace };
   const racers: Racer[] = [me];
@@ -98,6 +105,34 @@ export function mountRace(root: HTMLElement) {
   const viewCanvas = $<HTMLCanvasElement>('#view');
   const flatCanvas = $<HTMLCanvasElement>('#course');
 
+  /** 컴퓨터 선수: 빈 레인을 채운다. 페이스는 고스트(없으면 테스트 모드 페이스, 그것도 없으면 2:00) 근처 */
+  function addAiRacers() {
+    const n = app.aiCount;
+    if (!n) return;
+    const lanes = course.loop ? [1, 4] : [2, 4, 1, 5, 6];
+    const used = new Set(racers.map((r) => r.lane));
+    const free = lanes.filter((l) => !used.has(l)).slice(0, course.loop ? Math.min(n, 2) : n);
+    const g = ghost;
+    const base = g ? (g.finishMs / 1000) * (500 / Math.max(1, g.traveledM || g.distance)) : (auto?.basePace ?? 120);
+    const spread = [-2.5, 1.5, -0.8, 3.5, 0.6];
+    const others = COUNTRIES.filter((c) => c.code !== app.country.code);
+    const seed = Math.floor(engine.startAt) % 100000;
+    const uniforms = ['red', 'green', 'white', 'blue'];
+    free.forEach((lane, i) => {
+      const tr = aiTrace({ distance, basePace: base + spread[i], baseSpm: 29 + (i % 3), seed: seed + i * 101 });
+      racers.push({
+        id: `ai${i}`,
+        name: aiName(seed + i),
+        country: others[(seed + i * 7) % others.length],
+        lane,
+        ai: true,
+        human: i % 2 ? 'rb_female' : 'rb_male',
+        uniform: uniforms[i % uniforms.length],
+        trace: () => tr,
+      });
+    });
+  }
+
   async function init() {
     await ghostReady;
     if (ghost) {
@@ -111,6 +146,7 @@ export function mountRace(root: HTMLElement) {
         trace: () => g.trace,
       });
     }
+    addAiRacers();
     if (destroyed) return;
     renderStandings(0, 0);
 
@@ -130,8 +166,8 @@ export function mountRace(root: HTMLElement) {
           ghost: r.ghost,
           me: r.me,
           shirt: r.me || r.ghost ? SHIRTS[app.character.shirt] : undefined,
-          human: app.character.gender === 'w' ? 'rb_female' : 'rb_male',
-          uniform: app.character.shirt,
+          human: r.human ?? (app.character.gender === 'w' ? 'rb_female' : 'rb_male'),
+          uniform: r.uniform ?? app.character.shirt,
         })),
       });
     } else {
@@ -141,7 +177,7 @@ export function mountRace(root: HTMLElement) {
 
     const { svgMinimap, mapMinimap } = await import('../render/minimap');
     if (destroyed) return;
-    const dots = racers.map((r) => ({ id: r.id, color: r.ghost ? '#b9c6d3' : '#3fa9f5', me: r.me }));
+    const dots = racers.map((r) => ({ id: r.id, color: r.ghost ? '#b9c6d3' : r.ai ? '#ffb020' : '#3fa9f5', me: r.me }));
     if (course.loop) minimap = svgMinimap($('#minimap'), dots);
     else mapMinimap($('#minimap'), course, distance, dots).then((m) => (destroyed ? m.destroy() : (minimap = m)), () => {});
   }
@@ -173,7 +209,12 @@ export function mountRace(root: HTMLElement) {
     } catch {
       saved = { ...record, id: 'unsaved', createdAt: Date.now() };
     }
-    app.lastRace = { race: saved, ghost: prevBest, isBest: isBetter(saved, prevBest) };
+    // 컴퓨터 선수 포함 최종 순위 (내 결승 기록 vs 각 선수가 같은 거리에 도달한 시각)
+    const field = racers.filter((r) => r.ai);
+    const place = field.length
+      ? 1 + field.filter((r) => (timeAt(r.trace(), result.traveledM || result.distance) ?? Infinity) < result.finishMs).length
+      : undefined;
+    app.lastRace = { race: saved, ghost: prevBest, isBest: isBetter(saved, prevBest), place, fieldSize: field.length + 1 };
     setTimeout(() => go('result'), open ? 300 : 2500);
   }
 
@@ -210,7 +251,14 @@ export function mountRace(root: HTMLElement) {
 
   function renderStandings(tDisp: number, elapsed: number) {
     const pos = racers.map((r) => ({ r, d: r.me ? myDisplayD(tDisp) : distanceAt(r.trace(), tDisp) }));
-    pos.sort((a, b) => b.d - a.d);
+    // 결승한 선수끼리는 결승 기록 순서
+    const fin = (p: { r: Racer; d: number }) => (Number.isFinite(distance) && p.d >= distance ? (timeAt(p.r.trace(), distance) ?? Infinity) : Infinity);
+    pos.sort((a, b) => {
+      const fa = fin(a);
+      const fb = fin(b);
+      if (fa !== Infinity || fb !== Infinity) return fa - fb;
+      return b.d - a.d;
+    });
     const leader = pos[0];
     // 시간 차: 뒤쪽 배가 지금 있는 거리에 선두가 도달했던 시각과의 차이
     const gapSec = (p: (typeof pos)[number]) => {
@@ -271,6 +319,7 @@ export function mountRace(root: HTMLElement) {
       view.setClock(Math.max(0, elapsed) / 1000);
       view.setState('me', { d: myD, spm: src.last?.spm ?? 0 });
       if (ghostR) view.setState('ghost', { d: ghostD!, spm: spmAt(ghostR.trace(), tDisp) });
+      for (const r of racers) if (r.ai) view.setState(r.id, { d: distanceAt(r.trace(), tDisp), spm: spmAt(r.trace(), tDisp) });
     } else if (!flatCanvas.hidden && !open) {
       const boats = [];
       if (ghostR) boats.push({ name: ghostR.name, distanceM: ghostD!, color: '#b9c6d3', ghost: true });

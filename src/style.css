@@ -323,3 +323,7 @@ select, input {
 }
 .minimap { position: relative; }
 .mini-attr { position: absolute; right: 0; bottom: 0; z-index: 2; font-size: 9px; color: #333; background: rgba(255,255,255,.75); padding: 1px 4px; border-top-left-radius: 4px; }
+.menu #demo { grid-column: 1 / -1; background: #2b3540; color: var(--text); border: 2px solid var(--accent); }
+.race3d .srow.ai { opacity: 0.95; }
+.result-place { font-size: 2rem; font-weight: 800; color: #ffd34d; margin: 0; }
+.result-place small { font-size: 1rem; color: var(--muted); }

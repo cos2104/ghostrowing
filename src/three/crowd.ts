@@ -3,8 +3,8 @@ import * as THREE from 'three';
 import { Human, type HumanModel } from './human';
 import type { Track } from './track';
 
-const MODELS: HumanModel[] = ['m_Casual', 'w_Formal', 'm_Suit', 'w_Worker', 'm_Worker', 'w_Adventurer'];
-const SHIRTS = [0xd62828, 0x1f4fbf, 0xf2c200, 0x2a9d8f, 0xffffff, 0xe76f51, 0x6a4c93, 0x264653];
+// Rocketbox(MIT) 일반인 모델 6종을 돌려 쓴다
+const MODELS: HumanModel[] = ['fan_m1', 'fan_f1', 'fan_m8', 'fan_f3', 'fan_m12', 'fan_f12'];
 
 interface Fan {
   h: Human;
@@ -28,7 +28,6 @@ export class Crowd {
     await Promise.all(
       this.spots.map(async (s, i) => {
         const h = await Human.create(MODELS[i % MODELS.length], 1.65 + ((i * 37) % 20) / 100);
-        h.recolor('Body', SHIRTS[(i * 3) % SHIRTS.length]);
         const f = this.track.frame(s.d, s.offset);
         h.root.position.set(f.x, 0.7, f.z);
         // 코스 쪽을 바라보게 (캐릭터 정면 = +Z)

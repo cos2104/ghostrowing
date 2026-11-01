@@ -206,3 +206,23 @@ describe('기록 저장 (IndexedDB)', () => {
     expect((await getBest('test', 0))!.traveledM).toBe(510);
   });
 });
+
+describe('컴퓨터 선수 기록', async () => {
+  const { aiTrace, raceProfile } = await import('../src/race/ai');
+  it('500m를 기본 페이스 근처 기록으로 완주하고, 거리는 줄지 않는다', () => {
+    const tr = aiTrace({ distance: 500, basePace: 115, baseSpm: 30, seed: 7 });
+    const last = tr[tr.length - 1];
+    expect(last[1]).toBe(500);
+    expect(last[0] / 1000).toBeGreaterThan(105);
+    expect(last[0] / 1000).toBeLessThan(120);
+    for (let i = 1; i < tr.length; i++) expect(tr[i][1]).toBeGreaterThanOrEqual(tr[i - 1][1]);
+  });
+  it('출발 직후는 레이트가 높고 막판에 스퍼트', () => {
+    expect(raceProfile(0, 1, 115, 30).spm).toBeGreaterThan(34);
+    expect(raceProfile(0.5, 60, 115, 30).spm).toBe(30);
+    expect(raceProfile(0.95, 100, 115, 30).pace).toBeLessThan(115);
+  });
+  it('같은 시드면 같은 기록', () => {
+    expect(aiTrace({ distance: 500, basePace: 120, baseSpm: 28, seed: 3 })).toEqual(aiTrace({ distance: 500, basePace: 120, baseSpm: 28, seed: 3 }));
+  });
+});

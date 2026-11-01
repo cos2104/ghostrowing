@@ -16,6 +16,9 @@ export interface LastRace {
   race: SavedRace;
   ghost: SavedRace | null;
   isBest: boolean;
+  /** 컴퓨터 선수와 함께 탄 경우 내 순위 */
+  place?: number;
+  fieldSize?: number;
 }
 
 export const app = {
@@ -43,6 +46,14 @@ export const app = {
   },
   set country(c: Country) {
     safeSet('country', c.code);
+  },
+  /** 컴퓨터 선수 수 (0·2·4) */
+  get aiCount(): number {
+    const n = Number(safeGet('aiCount'));
+    return [0, 2, 4].includes(n) ? n : 0;
+  },
+  set aiCount(n: number) {
+    safeSet('aiCount', String(n));
   },
   /** 3D 화질. 느린 기기는 low */
   get quality(): 'high' | 'low' {

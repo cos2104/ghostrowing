@@ -24,6 +24,7 @@ export function mountConnect(root: HTMLElement) {
         <button id="pm5" ${fast ? 'disabled' : ''}>PM5 연결</button>
         <button id="test-manual" class="secondary">테스트 모드: 탭·스페이스</button>
         <button id="test-auto" class="secondary">테스트 모드: 자동</button>
+        <label class="inline"><input type="checkbox" id="auto-race" checked /> 실전형</label>
         <label class="inline">자동 페이스
           <select id="auto-pace">
             <option value="100">1:40</option>
@@ -73,6 +74,13 @@ export function mountConnect(root: HTMLElement) {
     </section>
 
     <div class="row end">
+      <label class="inline">컴퓨터 선수
+        <select id="ai">
+          <option value="0">없음</option>
+          <option value="2">2명</option>
+          <option value="4">4명 (순환 코스는 2명)</option>
+        </select>
+      </label>
       <label class="inline">화질
         <select id="quality">
           <option value="high">높음 (물 반사)</option>
@@ -109,7 +117,8 @@ export function mountConnect(root: HTMLElement) {
   });
   $('#test-auto').addEventListener('click', () => {
     const paceSec = Number($<HTMLSelectElement>('#auto-pace').value);
-    setSource(new TestSource({ type: 'auto', paceSec, spm: 28 }));
+    const race = $<HTMLInputElement>('#auto-race').checked;
+    setSource(new TestSource({ type: 'auto', paceSec, spm: race ? 30 : 28, profile: race ? 'race' : 'steady' }));
     refreshBest();
   });
 
@@ -124,6 +133,10 @@ export function mountConnect(root: HTMLElement) {
       app.course = COURSES.find((c) => c.id === b.dataset.course)!;
     }),
   );
+
+  const ai = $<HTMLSelectElement>('#ai');
+  ai.value = String(app.aiCount);
+  ai.addEventListener('change', () => (app.aiCount = Number(ai.value)));
 
   const quality = $<HTMLSelectElement>('#quality');
   quality.value = app.quality;
