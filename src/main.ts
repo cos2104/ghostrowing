@@ -48,6 +48,17 @@ app.innerHTML = `
     </div>
   </header>
   <p id="message" class="message"></p>
+  <details class="help">
+    <summary>PM5가 목록에 안 보이나요?</summary>
+    <ol>
+      <li>PM5는 한 번에 기기 하나만 연결됩니다. ErgData 등 다른 앱을 <b>완전히 종료</b>하세요 (최근 앱 목록에서 밀어서 닫기).</li>
+      <li>PM5 메인 메뉴에서 <b>Connect</b>를 눌러 연결 대기 화면을 띄운 상태로 다시 시도하세요.</li>
+      <li>태블릿 <b>위치(GPS)</b>를 켜고, 크롬 앱 권한에서 <b>근처 기기</b>를 허용하세요.</li>
+      <li>안드로이드 블루투스 설정에서 PM5를 직접 페어링했다면 <b>등록 해제</b>하세요.</li>
+      <li>그래도 안 되면 아래 버튼으로 주변 기기를 모두 보고, PM5가 어떤 이름으로 보이는지 알려 주세요.</li>
+    </ol>
+    <button id="connect-all" class="secondary">모든 블루투스 기기 보기</button>
+  </details>
 
   <section class="metrics">
     <div class="metric"><label>거리</label><output id="m-dist">-</output><span>m</span></div>
@@ -134,7 +145,7 @@ async function attach(device: BluetoothDevice) {
     resetMeasurement();
     setStatus('connected', `${state.conn.name}에 연결됨. PM5에서 Just Row를 시작하세요.`);
   } catch (e) {
-    setStatus('error', errorText(e));
+    setStatus('error', `[${device.name ?? '이름 없음'}] ${errorText(e)}`);
   }
 }
 
@@ -147,6 +158,16 @@ $('connect').addEventListener('click', async () => {
   try {
     // 끊긴 기기는 선택 창 없이 바로 다시 붙인다
     const device = state.status === 'disconnected' && state.device ? state.device : await pickDevice();
+    state.device = device;
+    await attach(device);
+  } catch (e) {
+    setStatus('error', errorText(e));
+  }
+});
+
+$('connect-all').addEventListener('click', async () => {
+  try {
+    const device = await pickDevice(true);
     state.device = device;
     await attach(device);
   } catch (e) {

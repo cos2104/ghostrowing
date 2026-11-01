@@ -5,6 +5,8 @@ const BASE = '-43e5-11e4-916c-0800200c9a66';
 const uuid = (short: string) => `ce06${short}${BASE}`;
 
 export const PM5 = {
+  /** PM5가 광고(advertise)하는 검색용 서비스 */
+  discoveryService: uuid('0000'),
   /** PM5 기기 정보 서비스 */
   deviceInfoService: uuid('0010'),
   /** 로잉 데이터 서비스 */

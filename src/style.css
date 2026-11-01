@@ -110,3 +110,12 @@ button:disabled { opacity: 0.4; cursor: default; }
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+.help {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.help summary { cursor: pointer; color: var(--accent); }
+.help li { margin: 6px 0; line-height: 1.5; }

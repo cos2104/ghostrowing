@@ -12,14 +12,22 @@ export interface Pm5Connection {
   disconnect: () => void;
 }
 
-/** 반드시 사용자 클릭 이벤트 안에서 호출해야 한다. */
-export async function pickDevice(): Promise<BluetoothDevice> {
+/**
+ * 반드시 사용자 클릭 이벤트 안에서 호출해야 한다.
+ * showAll=true면 필터 없이 주변 BLE 기기를 모두 보여 준다 (PM5가 목록에 안 뜰 때 진단용).
+ */
+export async function pickDevice(showAll = false): Promise<BluetoothDevice> {
   if (!('bluetooth' in navigator)) {
     throw new Error('이 브라우저는 Web Bluetooth를 지원하지 않습니다. 안드로이드·PC 크롬을 사용하세요.');
   }
+  const optionalServices = [PM5.deviceInfoService, PM5.rowingService];
+  if (showAll) {
+    return navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices });
+  }
   return navigator.bluetooth.requestDevice({
-    filters: [{ namePrefix: 'PM5' }],
-    optionalServices: [PM5.deviceInfoService, PM5.rowingService],
+    // 이름 또는 PM5 검색 서비스 UUID 둘 중 하나만 맞아도 표시
+    filters: [{ namePrefix: 'PM5' }, { services: [PM5.discoveryService] }],
+    optionalServices,
   });
 }
 
