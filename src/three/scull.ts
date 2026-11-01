@@ -215,17 +215,21 @@ export class Scull {
       h.limb(`UpperLeg.${side}`, `LowerLeg.${side}`, `Foot.${side}`, foot, up.clone().add(W(V(0, 0, z)).sub(W(V(0, 0, 0)))), h.len.thigh, h.len.shin);
       // 팔: 손잡이, 팔꿈치는 바깥·아래로
       // 팔꿈치는 몸 뒤(뱃머리 +x)·아래로, 옆으로는 조금만 (닭날개 방지)
-      const out = W(V(0.75, -0.55, z * 2.5)).sub(W(V(0, 0, 0))).normalize();
-      // 손: 주먹 안쪽(손가락 마디 가운데)이 손잡이 위에 오고, 마디 줄이 노 막대와 나란하게
+      // 팔꿈치는 바깥(옆)·약간 아래로 벌려 양팔이 역하트 모양이 되게 (상완이 몸통을 파고들지 않게)
+      const out = W(V(0.15, -0.45, z * 9)).sub(W(V(0, 0, 0))).normalize();
+      // 손: 노 각도와 상관없이 배와 나란하게(손가락이 뱃머리 쪽), 손목에서 전완과 약간만 꺾이게.
+      // 손등은 위, 검지→새끼 마디 줄은 바깥쪽. 주먹 중심이 손잡이 위에 오도록 손목 목표를 보정한다.
       const grip = W(J.hand[side]);
-      const shaftOut = W(J.shaft[side].clone()).sub(W(V(0, 0, 0))).normalize();
-      const sh = h.bonePos(`UpperArm.${side}`);
-      let wrist = grip.clone().sub(grip.clone().sub(sh).normalize().multiplyScalar(0.075));
+      const boatFwd = W(V(1, 0, 0)).sub(W(V(0, 0, 0))).normalize();
+      const outward = W(V(0, 0, z > 0 ? 1 : -1)).sub(W(V(0, 0, 0))).normalize();
+      let wrist = grip.clone().sub(boatFwd.clone().multiplyScalar(0.07));
       for (let it = 0; it < 3; it++) {
         h.limb(`UpperArm.${side}`, `LowerArm.${side}`, `Hand.${side}`, wrist, out, h.len.upper, h.len.fore);
-        const g = h.orientGrip(side, shaftOut);
+        const forearm = h.bonePos(`Hand.${side}`).sub(h.bonePos(`LowerArm.${side}`)).normalize();
+        const finger = forearm.multiplyScalar(0.35).add(boatFwd.clone().multiplyScalar(0.65)).normalize();
+        const g = h.orientGrip(side, outward, finger);
         if (!g) break;
-        wrist = wrist.clone().add(grip.clone().sub(g)); // 주먹 중심이 손잡이에 오도록 손목 목표 보정
+        wrist = wrist.clone().add(grip.clone().sub(g));
       }
     }
   }

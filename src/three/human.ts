@@ -264,7 +264,7 @@ export class Human {
    * 검지→새끼 마디 줄을 shaftOut과 나란히, 손목은 전완과 일직선.
    * 돌린 뒤 주먹 중심(검지·새끼 마디 가운데) 월드 위치를 돌려준다.
    */
-  orientGrip(side: 'L' | 'R', shaftOut: THREE.Vector3): THREE.Vector3 | null {
+  orientGrip(side: 'L' | 'R', knuckleDir: THREE.Vector3, fingerDir: THREE.Vector3): THREE.Vector3 | null {
     const f = this.fingerBases(side);
     if (!f) return null;
     const hand = this.bones[`Hand.${side}`];
@@ -274,9 +274,8 @@ export class Human {
     const k = F4.clone().sub(F1).normalize();
     const fw = F1.clone().add(F4).multiplyScalar(0.5).sub(W);
     fw.sub(k.clone().multiplyScalar(fw.dot(k))).normalize();
-    const kw = shaftOut.clone().normalize();
-    const arm = W.clone().sub(this.bonePos(`LowerArm.${side}`)).normalize();
-    const fw2 = arm.sub(kw.clone().multiplyScalar(arm.dot(kw)));
+    const kw = knuckleDir.clone().normalize();
+    const fw2 = fingerDir.clone().sub(kw.clone().multiplyScalar(fingerDir.dot(kw)));
     if (fw2.lengthSq() < 1e-6) return null;
     fw2.normalize();
     const B = new THREE.Matrix4().makeBasis(k, fw, k.clone().cross(fw));
